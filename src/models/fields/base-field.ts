@@ -47,7 +47,7 @@ export abstract class Field {
 
   public getDefaultValueStatement(): string {
     return this.options.defaultValue
-      ? ` DEFAULT ${this.options.defaultValue}`
+      ? `DEFAULT ${this.options.defaultValue}`
       : ""
   }
 }

@@ -1,14 +1,16 @@
 import {
   BooleanField,
   BooleanFieldTypes,
-  FieldsOf,
-  MergeTreeTableDefinition,
   Model,
   NumberField,
   NumberFieldTypes,
   StringField,
   StringFieldTypes,
-} from "../migrations/model"
+} from "../models"
+import {
+  FieldsOf,
+  MergeTreeTableDefinition,
+} from "../models/definitions/table-definition"
 
 describe("Model", () => {
   it("should create a table statement", () => {
@@ -19,12 +21,23 @@ describe("Model", () => {
       isActive: boolean
     }
 
-    class UserModel extends Model<User> {
+    type UserMaterialized = {
+      userName: string
+    }
+
+    class UserModel extends Model<User, UserMaterialized> {
       static fields: FieldsOf<User> = {
         id: new NumberField({ type: NumberFieldTypes.Int32 }),
         name: new StringField({ type: StringFieldTypes.String }),
         email: new StringField({ type: StringFieldTypes.String }),
         isActive: new BooleanField({ type: BooleanFieldTypes.Boolean }),
+      }
+
+      static materializedFields: FieldsOf<UserMaterialized> = {
+        userName: new StringField({
+          type: StringFieldTypes.String,
+          expression: "concat(name, ' ', email)",
+        }),
       }
 
       static tableDefinition: MergeTreeTableDefinition<User> = {
