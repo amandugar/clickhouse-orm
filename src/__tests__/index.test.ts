@@ -24,7 +24,7 @@ describe("parseTableToSQLString", () => {
 
     const table = parseTableToSQLString<Table>({
       name: "test",
-      partition: "test",
+      partition: "name",
       engine: Engine.MERGE_TREE,
       columns: [
         { name: "id", type: Types.Number.INT_32 },
@@ -34,7 +34,7 @@ describe("parseTableToSQLString", () => {
     })
 
     expect(table).toBe(
-      "CREATE TABLE test (id Int32, name String, isActive Boolean) ENGINE = MergeTree PARTITION BY (test)"
+      "CREATE TABLE test (id Int32, name String, isActive Boolean) ENGINE = MergeTree PARTITION BY (name)"
     )
   })
 })

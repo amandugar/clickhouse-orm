@@ -1,6 +1,8 @@
 import { Engine } from "../utils/engines"
 
-export type BaseColumn<T extends Record<string, unknown>> = {
+export type BaseColumn<
+  T extends Record<string, unknown> = Record<string, unknown>
+> = {
   name: Extract<keyof T, string>
 }
 
@@ -19,10 +21,9 @@ export type StringColumn<T extends Record<string, unknown>> = BaseColumn<T> & {
   default?: string
 }
 
-export type Column<T extends Record<string, unknown>> =
-  | NumberColumn<T>
-  | BooleanColumn<T>
-  | StringColumn<T>
+export type Column<
+  T extends Record<string, unknown> = Record<string, unknown>
+> = NumberColumn<T> | BooleanColumn<T> | StringColumn<T>
 
 export type MaterializedColumn<T extends Record<string, unknown>> =
   Column<T> & { expression: string }
@@ -34,7 +35,6 @@ export interface ClickhouseTable<
   name: string
   partition: string
   engine: Engine
-  partitionKeyId?: Extract<keyof T, string>[]
   primaryKeyId?: Extract<keyof T, string>[]
   orderBy?: Extract<keyof T, string>[]
   columns: Column<T>[]

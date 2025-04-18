@@ -52,12 +52,28 @@ const assertDuplicateMaterializedColumns = <
   }
 }
 
+const assertPartitionKeyId = <T extends Record<string, unknown>>(
+  columns: BaseColumn[],
+  partitionKey: string
+) => {
+  for (const key of columns) {
+    if (partitionKey.includes(key.name)) {
+      return
+    }
+  }
+  throw new Error("Partition key id should contain any one of column names")
+}
+
 export const parseTableToSQLString = <
   T extends Record<string, unknown>,
   M extends Record<string, unknown> = Record<string, unknown>
 >(
   table: ClickhouseTable<T, M>
 ) => {
+  if (table.columns.length === 0 || table.materializedColumns?.length === 0) {
+    throw new Error("No columns defined")
+  }
+
   assertDuplicateColumns(table.columns)
   assertDuplicateColumns(table.materializedColumns ?? [])
   assertDuplicateMaterializedColumns<T, M>(
@@ -65,15 +81,20 @@ export const parseTableToSQLString = <
     table.materializedColumns ?? []
   )
 
+  const partitionKey = table.partition
+
+  if (partitionKey) {
+    assertPartitionKeyId(
+      [...table.columns, ...(table.materializedColumns ?? [])],
+      partitionKey
+    )
+  }
+
   const columnDefinitions = table.columns
     .map(generateColumnDefinition)
     .concat(
       table.materializedColumns?.map(generateMaterializedColumnDefinition) ?? []
     )
-
-  if (columnDefinitions.length === 0) {
-    throw new Error("No columns defined")
-  }
 
   let sql = `CREATE TABLE ${table.name} (`
   sql += columnDefinitions.join(", ")
