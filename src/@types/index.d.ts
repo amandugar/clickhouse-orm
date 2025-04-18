@@ -4,6 +4,10 @@ export type BaseColumn<
   T extends Record<string, unknown> = Record<string, unknown>
 > = {
   name: Extract<keyof T, string>
+  /**
+   * Optional expression makes it a materialized column when present
+   */
+  matExpression?: string
 }
 
 export type NumberColumn<T extends Record<string, unknown>> = BaseColumn<T> & {
@@ -25,18 +29,11 @@ export type Column<
   T extends Record<string, unknown> = Record<string, unknown>
 > = NumberColumn<T> | BooleanColumn<T> | StringColumn<T>
 
-export type MaterializedColumn<T extends Record<string, unknown>> =
-  Column<T> & { expression: string }
-
-export interface ClickhouseTable<
-  T extends Record<string, unknown>,
-  M extends Record<string, unknown>
-> {
+export interface ClickhouseTable<T extends Record<string, unknown>> {
   name: string
   partition: string
   engine: Engine
   primaryKeyId?: Extract<keyof T, string>[]
   orderBy?: Extract<keyof T, string>[]
   columns: Column<T>[]
-  materializedColumns?: MaterializedColumn<M>[]
 }
