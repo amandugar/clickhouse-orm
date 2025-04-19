@@ -67,7 +67,7 @@ describe("Model", () => {
     })
     UserModel.createTable()
     UserModel.init()
-    const user = new UserModel({
+    const user = new UserModel().create({
       email: "test@test.com",
       name: "Test",
       id: 1,

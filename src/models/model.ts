@@ -5,13 +5,21 @@ import {
   ConnectionCredentials,
   ConnectionConfig,
 } from "../utils/connection-manager"
-import { ClickHouseClient } from "@clickhouse/client"
+import { ClickHouseClient, Row } from "@clickhouse/client"
 
 /**
  * @description
  * <T> is the type of the normal fields
  * <M> is the type of the materialized fields
  */
+
+type FindOptions<T extends Record<string, unknown>> = {
+  where: {
+    [K in keyof T]?: T[K]
+  }
+  projection?: (keyof T)[]
+}
+
 export abstract class Model<
   T extends Record<string, unknown>,
   M extends Record<string, unknown>
@@ -19,7 +27,13 @@ export abstract class Model<
   protected static fields: FieldsOf<any> = {}
   protected static tableDefinition: TableDefinition<any>
 
-  constructor(data: T) {
+  constructor(data?: T) {
+    if (data) {
+      this.create(data)
+    }
+  }
+
+  public create(data: T) {
     const constructor = this.constructor as typeof Model<T, M>
     const processFields = (fields: Record<string, Field>) => {
       Object.keys(fields).forEach(fieldName => {
@@ -32,6 +46,8 @@ export abstract class Model<
     }
 
     processFields(constructor["fields"])
+
+    return this
   }
 
   public static init(): void {
@@ -135,5 +151,59 @@ export abstract class Model<
         query,
       })
     })
+  }
+  public async find(options: FindOptions<T>) {
+    const constructor = this.constructor as typeof Model
+    const tableDefinition = constructor.tableDefinition
+    const tableName = tableDefinition.tableName
+
+    const values: Record<string, any> = {}
+    const whereClause =
+      options.where && Object.keys(options.where).length > 0
+        ? "WHERE " +
+          Object.entries(options.where)
+            .map(([key, value], index) => {
+              values[`val${index}`] = value
+              return `${key} = {val${index}:String}`
+            })
+            .join(" AND ")
+        : ""
+
+    const selectClause = options.projection
+      ? `SELECT ${options.projection.join(", ")}`
+      : "SELECT *"
+
+    const query = `${selectClause} FROM ${tableName} ${whereClause}`
+
+    const result = await constructor.withConnection(async client => {
+      return await client.query({
+        query,
+        format: "JSONEachRow",
+        query_params: values,
+      })
+    })
+
+    const stream = result.stream()
+    const iterator = stream[Symbol.asyncIterator]() // This converts the stream to an iterator
+
+    return {
+      async next(): Promise<Row<T, "JSONEachRow">[] | null> {
+        const { value, done } = await iterator.next()
+        if (done) return null
+        return value
+      },
+
+      async toArray(): Promise<Row<T, "JSONEachRow">[]> {
+        const rows: Row<T, "JSONEachRow">[] = []
+        for await (const row of stream) {
+          rows.push(...row)
+        }
+        return rows
+      },
+    }
+  }
+
+  public findAll() {
+    return this.find({ where: {} })
   }
 }
