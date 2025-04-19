@@ -1,4 +1,4 @@
-import { Field } from "./fields/base-field"
+import { Field, FieldType } from "./fields/base-field"
 import { TableDefinition, FieldsOf } from "./definitions/table-definition"
 import {
   ConnectionManager,
@@ -20,9 +20,63 @@ type FindOptions<T extends Record<string, unknown>> = {
   projection?: (keyof T)[]
 }
 
-export abstract class Model<
+type Column = {
+  name: string
+  type: FieldType
+  expression?: string
+  default?: string | number | boolean
+}
+
+export type Schema = {
+  tableName: string
+  columns: Column[]
+  engine: string
+  orderBy?: string[]
+  partitionBy?: string
+  primaryKey?: string[]
+}
+
+type NewModel<
   T extends Record<string, unknown>,
   M extends Record<string, unknown>
+> = {
+  type: "CREATE"
+  schema: Schema
+}
+
+type DropModel = {
+  type: "DROP"
+  schema: { tableName: string }
+}
+
+type ExistingModel = {
+  type: "UPDATE"
+  add?: Column[]
+  remove?: string[]
+  update?: Column[]
+  tableName: string
+}
+
+type Change<
+  T extends Record<string, unknown>,
+  M extends Record<string, unknown>
+> = NewModel<T, M> | ExistingModel | DropModel
+
+export type SchemaChange<
+  T extends Record<string, unknown>,
+  M extends Record<string, unknown>
+> = {
+  changes: Change<T, M>
+}
+
+export type SchemaChanges<
+  T extends Record<string, unknown>,
+  M extends Record<string, unknown>
+> = SchemaChange<T, M>[]
+
+export abstract class Model<
+  T extends Record<string, unknown>,
+  M extends Record<string, unknown> = T
 > {
   protected static fields: FieldsOf<any> = {}
   protected static tableDefinition: TableDefinition<any>
@@ -105,6 +159,29 @@ export abstract class Model<
   public static createTable(): void {
     const tableStatement = this.createTableStatement()
     this.withConnection(client => client.exec({ query: tableStatement }))
+  }
+
+  public static generateSchema(): Schema {
+    const tableDefinition = this.tableDefinition
+    const tableName = tableDefinition.tableName
+    const columns: Column[] = Object.keys(this.fields).map(fieldName => {
+      const field = this.fields[fieldName]
+      return {
+        name: fieldName,
+        type: field.getType() as FieldType,
+        expression: field.getOptions().expression,
+        default: field.getOptions().defaultValue,
+      }
+    })
+
+    return {
+      tableName,
+      columns,
+      engine: tableDefinition.engine,
+      orderBy: tableDefinition.orderBy,
+      partitionBy: tableDefinition.partitionBy,
+      primaryKey: tableDefinition.primaryKey,
+    }
   }
 
   protected static async withConnection<
