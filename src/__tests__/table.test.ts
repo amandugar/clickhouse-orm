@@ -26,14 +26,11 @@ describe("Model", () => {
     }
 
     class UserModel extends Model<User, UserMaterialized> {
-      static fields: FieldsOf<User> = {
+      static fields: FieldsOf<User & UserMaterialized> = {
         id: new NumberField({ type: NumberFieldTypes.Int32 }),
         name: new StringField({ type: StringFieldTypes.String }),
         email: new StringField({ type: StringFieldTypes.String }),
         isActive: new BooleanField({ type: BooleanFieldTypes.Boolean }),
-      }
-
-      static materializedFields: FieldsOf<UserMaterialized> = {
         userName: new StringField({
           type: StringFieldTypes.String,
           expression: "concat(name, ' ', email)",
@@ -54,7 +51,7 @@ describe("Model", () => {
     const table = UserModel.createTableStatement()
 
     expect(table).toBe(
-      "CREATE TABLE users (id Int32, name String, email String, isActive Boolean) ENGINE = MergeTree PARTITION BY name PRIMARY KEY (id) ORDER BY (id)"
+      "CREATE TABLE users (id Int32, name String, email String, isActive Boolean, userName String MATERIALIZED concat(name, ' ', email)) ENGINE = MergeTree PARTITION BY name PRIMARY KEY (id) ORDER BY (id)"
     )
   })
 })

@@ -11,9 +11,7 @@ export abstract class Model<
   M extends Record<string, unknown>
 > {
   protected static fields: FieldsOf<any> = {}
-  protected static materializedFields: FieldsOf<any> = {}
-  protected static tableDefinition: TableDefinition<any>;
-  [key: string]: any
+  protected static tableDefinition: TableDefinition<any>
 
   constructor(data: T) {
     const constructor = this.constructor as typeof Model<T, M>
@@ -32,27 +30,9 @@ export abstract class Model<
   }
 
   public static init(): void {
-    Object.entries(this.fields).forEach(([_, field]) => {
-      if (field.getOptions().expression) {
-        throw new Error("Expression is not allowed for normal fields")
-      }
+    Object.entries(this.fields).forEach(([fieldName, field]) => {
+      field.setName(fieldName)
     })
-
-    Object.entries(this.materializedFields).forEach(([fieldName, field]) => {
-      if (!field.getOptions().expression) {
-        throw new Error("Expression is required for materialized fields")
-      }
-
-      if (this.fields[fieldName]) {
-        throw new Error("Field name cannot be the same as a normal field")
-      }
-    })
-
-    Object.entries(this.fields)
-      .concat(Object.entries(this.materializedFields))
-      .forEach(([fieldName, field]) => {
-        field.setName(fieldName)
-      })
 
     if (!this.tableDefinition) {
       throw new Error("Table definition is required")
@@ -67,29 +47,26 @@ export abstract class Model<
     const engine = tableDefinition.engine
     const primaryKey = tableDefinition.primaryKey
 
-    const columns = Object.keys(this.fields)
-      .concat(Object.keys(this.materializedFields))
-      .map(fieldName => {
-        const field =
-          this.fields[fieldName] || this.materializedFields[fieldName]
-        const type = field.getType()
+    const columns = Object.keys(this.fields).map(fieldName => {
+      const field = this.fields[fieldName]
+      const type = field.getType()
 
-        if (!type) {
-          throw new Error("Type is required")
-        }
+      if (!type) {
+        throw new Error("Type is required")
+      }
 
-        let column = `${fieldName} ${type}`
+      let column = `${fieldName} ${type}`
 
-        if (field.getMaterializedStatement()) {
-          column += " " + field.getMaterializedStatement()
-        }
+      if (field.getMaterializedStatement()) {
+        column += " " + field.getMaterializedStatement()
+      }
 
-        if (field.getDefaultValueStatement()) {
-          column += " " + field.getDefaultValueStatement()
-        }
+      if (field.getDefaultValueStatement()) {
+        column += " " + field.getDefaultValueStatement()
+      }
 
-        return column
-      })
+      return column
+    })
 
     const columnsString = columns.join(", ")
     const partitionByStatement = partitionBy
