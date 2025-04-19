@@ -11,6 +11,7 @@ type UserSchema = {
   email: string
   createdAt: number
   updatedAt: number
+  deletedAt: number
 }
 
 class User extends Model<UserSchema> {
@@ -20,6 +21,7 @@ class User extends Model<UserSchema> {
     email: new StringField({}),
     createdAt: new NumberField({}),
     updatedAt: new NumberField({}),
+    deletedAt: new NumberField({}),
   }
 
   static tableDefinition: TableDefinition<UserSchema> = {

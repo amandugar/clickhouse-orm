@@ -115,13 +115,8 @@ export abstract class Model<
   }
 
   public static createTableStatement(): string {
-    const tableDefinition = this.tableDefinition
-    const tableName = tableDefinition.tableName
-    const orderBy = tableDefinition.orderBy
-    const partitionBy = tableDefinition.partitionBy
-    const engine = tableDefinition.engine
-    const primaryKey = tableDefinition.primaryKey
-
+    const schema = this.generateSchema()
+    const tableName = schema.tableName
     const columns = Object.keys(this.fields).map(fieldName => {
       const field = this.fields[fieldName]
       const type = field.getType()
@@ -144,18 +139,53 @@ export abstract class Model<
     })
 
     const columnsString = columns.join(", ")
-    const partitionByStatement = partitionBy
-      ? `PARTITION BY ${partitionBy}`
+    const partitionByStatement = schema.partitionBy
+      ? `PARTITION BY ${schema.partitionBy}`
       : ""
-    const primaryKeyStatement = primaryKey
-      ? `PRIMARY KEY (${primaryKey.join(", ")})`
+    const primaryKeyStatement = schema.primaryKey
+      ? `PRIMARY KEY (${schema.primaryKey.join(", ")})`
       : ""
     const orderByStatement =
-      orderBy.length > 0 ? `ORDER BY (${orderBy.join(", ")})` : ""
+      schema.orderBy && schema.orderBy.length > 0
+        ? `ORDER BY (${schema.orderBy.join(", ")})`
+        : ""
 
-    return `CREATE TABLE IF NOT EXISTS ${tableName} (${columnsString}) ENGINE = ${engine} ${partitionByStatement} ${primaryKeyStatement} ${orderByStatement}`.trim()
+    return `CREATE TABLE IF NOT EXISTS ${tableName} (${columnsString}) ENGINE = ${schema.engine} ${partitionByStatement} ${primaryKeyStatement} ${orderByStatement}`.trim()
   }
 
+  public static dropTableStatement(): string {
+    return `DROP TABLE IF EXISTS ${this.tableDefinition.tableName}`
+  }
+
+  public static addColumnStatement(columns: Column[]): string {
+    return `ALTER TABLE ${this.tableDefinition.tableName} ADD COLUMN ${columns
+      .map(
+        c =>
+          `${c.name} ${c.type}${
+            c.expression ? ` MATERIALIZED ${c.expression}` : ""
+          }${c.default ? ` DEFAULT ${c.default}` : ""}`
+      )
+      .join(", ")}`
+  }
+
+  public static dropColumnStatement(columns: string[]): string {
+    return `ALTER TABLE ${
+      this.tableDefinition.tableName
+    } DROP COLUMN ${columns.join(", ")}`
+  }
+
+  public static updateColumnStatement(columns: Column[]): string {
+    return `ALTER TABLE ${
+      this.tableDefinition.tableName
+    } MODIFY COLUMN ${columns
+      .map(
+        c =>
+          `${c.name} ${c.type}${
+            c.expression ? ` MATERIALIZED ${c.expression}` : ""
+          }${c.default ? ` DEFAULT ${c.default}` : ""}`
+      )
+      .join(", ")}`
+  }
   public static createTable(): void {
     const tableStatement = this.createTableStatement()
     this.withConnection(client => client.exec({ query: tableStatement }))

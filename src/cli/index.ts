@@ -3,6 +3,7 @@ import fs from "fs"
 import { Model } from "../models"
 import { Schema, SchemaChanges } from "../models/model"
 import { Column } from "../@types"
+import { memoize } from "lodash"
 
 /**
  * Take two arguments:
@@ -13,13 +14,17 @@ import { Column } from "../@types"
  * And it will create a new file for each migration which will have delta from the previous migration
  */
 
-function readMigrations(outputPath: string): SchemaChanges<any, any>[] {
+const migrationFiles = memoize((outputPath: string) => {
   const migrationsPath = path.resolve(`${outputPath}/migrations`)
-  const migrations = fs.readdirSync(migrationsPath)
+  return fs.readdirSync(migrationsPath)
+})
+
+function readMigrations(outputPath: string): SchemaChanges<any, any>[] {
+  const migrations = migrationFiles(outputPath)
   return migrations.map(migration => {
-    return JSON.parse(
-      fs.readFileSync(path.resolve(`${migrationsPath}/${migration}`), "utf8")
-    )
+    const filePath = path.resolve(`${outputPath}/migrations/${migration}`)
+    const diff = require(filePath).diff
+    return diff
   })
 }
 
@@ -225,10 +230,26 @@ async function generateSchema(modelPath: string, outputPath: string) {
     const existingMigrations = readMigrations(outputPath)
     const mergedMigrations = mergeMigrations(existingMigrations)
     const diff = diffSchemas(mergedMigrations, currentSchemas)
+    const lastFileSorted = migrationFiles(outputPath).sort((a, b) => {
+      return a.localeCompare(b)
+    })[migrationFiles(outputPath).length - 1]
+
+    if (Object.keys(diff).length === 0) {
+      console.log("No changes to the schema")
+      process.exit(0)
+    }
+
+    const fileString = `
+      export const diff = ${JSON.stringify(diff, null, 2)}
+      
+      export const dependencies = ${
+        lastFileSorted ? `['${lastFileSorted}']` : `[]`
+      }
+    `
 
     fs.writeFileSync(
-      path.resolve(`${migrationsPath}/${Date.now()}-migration.json`),
-      JSON.stringify(diff, null, 2)
+      path.resolve(`${migrationsPath}/${Date.now()}-migration.ts`),
+      fileString
     )
   } catch (error) {
     console.error("Error generating schema:", error)
