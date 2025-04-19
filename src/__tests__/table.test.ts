@@ -11,9 +11,10 @@ import {
   FieldsOf,
   MergeTreeTableDefinition,
 } from "../models/definitions/table-definition"
+import { ConnectionManager } from "../utils/connection-manager"
 
 describe("Model", () => {
-  it("should create a table statement", () => {
+  it("should create a table statement", async () => {
     type User = {
       id: number
       name: string
@@ -49,9 +50,34 @@ describe("Model", () => {
     UserModel.init()
 
     const table = UserModel.createTableStatement()
+    ConnectionManager.setDefault({
+      credentials: {
+        url: "http://localhost:8123",
+        username: "default",
+        database: "default",
+      },
+    })
+    ConnectionManager.createDatabase("test")
+    ConnectionManager.setDefault({
+      credentials: {
+        url: "http://localhost:8123",
+        username: "default",
+        database: "test",
+      },
+    })
+    UserModel.createTable()
+    UserModel.init()
+    const user = new UserModel({
+      email: "test@test.com",
+      name: "Test",
+      id: 1,
+      isActive: true,
+    })
+
+    await user.save()
 
     expect(table).toBe(
-      "CREATE TABLE users (id Int32, name String, email String, isActive Boolean, userName String MATERIALIZED concat(name, ' ', email)) ENGINE = MergeTree PARTITION BY name PRIMARY KEY (id) ORDER BY (id)"
+      "CREATE TABLE IF NOT EXISTS users (id Int32, name String, email String, isActive Boolean, userName String MATERIALIZED concat(name, ' ', email)) ENGINE = MergeTree PARTITION BY name PRIMARY KEY (id) ORDER BY (id)"
     )
   })
 })

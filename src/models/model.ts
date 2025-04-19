@@ -1,5 +1,11 @@
 import { Field } from "./fields/base-field"
 import { TableDefinition, FieldsOf } from "./definitions/table-definition"
+import {
+  ConnectionManager,
+  ConnectionCredentials,
+  ConnectionConfig,
+} from "../utils/connection-manager"
+import { ClickHouseClient } from "@clickhouse/client"
 
 /**
  * @description
@@ -26,7 +32,6 @@ export abstract class Model<
     }
 
     processFields(constructor["fields"])
-    processFields(constructor["materializedFields"])
   }
 
   public static init(): void {
@@ -78,6 +83,57 @@ export abstract class Model<
     const orderByStatement =
       orderBy.length > 0 ? `ORDER BY (${orderBy.join(", ")})` : ""
 
-    return `CREATE TABLE ${tableName} (${columnsString}) ENGINE = ${engine} ${partitionByStatement} ${primaryKeyStatement} ${orderByStatement}`.trim()
+    return `CREATE TABLE IF NOT EXISTS ${tableName} (${columnsString}) ENGINE = ${engine} ${partitionByStatement} ${primaryKeyStatement} ${orderByStatement}`.trim()
+  }
+
+  public static createTable(): void {
+    const tableStatement = this.createTableStatement()
+    this.withConnection(client => client.exec({ query: tableStatement }))
+  }
+
+  protected static async withConnection<
+    R,
+    C extends ConnectionCredentials = ConnectionCredentials
+  >(
+    operation: (client: ClickHouseClient) => Promise<R>,
+    config?: ConnectionConfig<C>
+  ): Promise<R> {
+    const connectionManager = config
+      ? ConnectionManager.getInstance<C>(config)
+      : ConnectionManager.getDefault()
+    return connectionManager.with(operation)
+  }
+
+  public async save(): Promise<void> {
+    const constructor = this.constructor as typeof Model
+    const tableDefinition = constructor.tableDefinition
+    const tableName = tableDefinition.tableName
+
+    // Get only the regular fields (excluding materialized fields)
+    const regularFields = Object.keys(constructor.fields).filter(
+      fieldName => !constructor.fields[fieldName].getMaterializedStatement()
+    )
+
+    // Get the values for the regular fields
+    const values = regularFields.map(fieldName => {
+      const value = this[fieldName as keyof this]
+      if (value === undefined) {
+        return "DEFAULT"
+      }
+      if (typeof value === "string") {
+        return `'${value}'`
+      }
+      return value
+    })
+
+    const query = `INSERT INTO ${tableName} (${regularFields.join(
+      ", "
+    )}) VALUES (${values.join(", ")})`
+
+    await constructor.withConnection(async client => {
+      await client.exec({
+        query,
+      })
+    })
   }
 }

@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@clickhouse/client": "^1.11.1",
     "@tsconfig/node20": "^20.1.5"
   },
   "devDependencies": {
