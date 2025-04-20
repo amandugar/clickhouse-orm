@@ -4,7 +4,7 @@ import { Column } from '../@types'
 import {
   ConnectionCredentials,
   ConnectionManager,
-} from '../utils/connection-manager'
+} from '../utils/database/connection-manager'
 
 export class MigrationRunner {
   private connection: ConnectionManager

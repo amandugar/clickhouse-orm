@@ -1,5 +1,5 @@
 {
-  "name": "clickhouse-orm",
+  "name": "@amandugar/clickhouseorm",
   "version": "1.0.0",
   "description": "A TypeScript ORM for ClickHouse with migrations support",
   "main": "dist/index.js",

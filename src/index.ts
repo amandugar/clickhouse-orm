@@ -4,7 +4,7 @@ import {
   ConnectionManager,
   ConnectionCredentials,
   ConnectionConfig,
-} from './utils/connection-manager'
+} from './utils/database/connection-manager'
 import { MigrationService } from './services/MigrationService'
 import { MigrationRunner } from './services/MigrationRunner'
 
