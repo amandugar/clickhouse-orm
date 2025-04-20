@@ -1,5 +1,6 @@
 import { DataRetrival } from "./data-retrival"
 import { Model } from "./model"
+import { ConnectionConfig } from "../utils/connection-manager"
 
 type Condition = {
   field: string
@@ -86,10 +87,12 @@ export class QueryBuilder<
   private _offset: number = 0
   private _limit: number | undefined = undefined
   private _project: string = "*"
+  private connectionConfig?: ConnectionConfig
 
-  constructor(model: typeof Model<T, M>) {
+  constructor(model: typeof Model<T, M>, connectionConfig?: ConnectionConfig) {
     super(model)
     this.tableName = model.tableDefinition.tableName
+    this.connectionConfig = connectionConfig
     this.query = `SELECT * FROM ${this.tableName}`
   }
 
@@ -190,7 +193,13 @@ export class QueryBuilder<
     }, {} as Record<number, Condition[]>)
 
     const groupClauses = Object.values(groups).map(group => {
-      if (group.length === 1) return this.buildCondition(group[0])
+      if (group.length === 1) {
+        const condition = group[0]
+        const builtCondition = this.buildCondition(condition)
+        return condition.logicalOperator === "NOT"
+          ? `(${builtCondition})`
+          : builtCondition
+      }
       const clause = group
         .map(c => this.buildCondition(c))
         .join(` ${group[0].logicalOperator} `)
@@ -223,11 +232,8 @@ export class QueryBuilder<
   public async *[Symbol.asyncIterator](): AsyncIterator<T> {
     this.setQuery()
     const withConnection = await this.model.withConnection(async client => {
-      return await client.query({
-        query: this.query,
-        format: "JSONEachRow",
-      })
-    })
+      return await client.query({ query: this.query, format: "JSONEachRow" })
+    }, this.connectionConfig)
 
     const stream = withConnection.stream()
     for await (const row of stream) {

@@ -6,7 +6,7 @@ import {
 import { Model } from "../models/model"
 
 type UserSchema = {
-  id: string
+  id: number
   name: string
   email: string
   createdAt: number
@@ -16,7 +16,7 @@ type UserSchema = {
 
 class User extends Model<UserSchema> {
   static fields: FieldsOf<UserSchema> = {
-    id: new StringField({}),
+    id: new NumberField({}),
     name: new StringField({}),
     email: new StringField({}),
     createdAt: new NumberField({}),

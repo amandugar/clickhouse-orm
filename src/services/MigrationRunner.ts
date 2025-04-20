@@ -1,11 +1,21 @@
-import { Model } from "../models/model"
 import { ClickHouseClient } from "@clickhouse/client"
 import { Schema } from "../models/model"
 import { Column } from "../@types"
-import { ConnectionCredentials } from "../utils/connection-manager"
+import {
+  ConnectionCredentials,
+  ConnectionManager,
+} from "../utils/connection-manager"
 
 export class MigrationRunner {
-  constructor(private readonly credentials?: ConnectionCredentials) {}
+  private connection: ConnectionManager
+
+  constructor(private readonly credentials: ConnectionCredentials) {
+    const connectionManager = ConnectionManager.getInstance({
+      credentials: this.credentials,
+    })
+
+    this.connection = connectionManager
+  }
 
   public static createTableStatement(schema: Schema): string {
     const columns = schema.columns.map(column => {
@@ -37,17 +47,17 @@ export class MigrationRunner {
 
   public async createTable(schema: Schema): Promise<void> {
     const statement = MigrationRunner.createTableStatement(schema)
-    await Model.withConnection(async (client: ClickHouseClient) => {
+    await this.connection.with(async (client: ClickHouseClient) => {
       await client.exec({ query: statement })
-    }, ...(this.credentials ? [{ credentials: this.credentials }] : []))
+    })
   }
 
   public async dropTable(tableName: string): Promise<void> {
     const statement = `DROP TABLE IF EXISTS ${tableName}`
 
-    await Model.withConnection(async (client: ClickHouseClient) => {
+    await this.connection.with(async (client: ClickHouseClient) => {
       await client.exec({ query: statement })
-    }, ...(this.credentials ? [{ credentials: this.credentials }] : []))
+    })
   }
 
   public async addColumns(tableName: string, columns: Column[]): Promise<void> {
@@ -60,9 +70,9 @@ export class MigrationRunner {
       })
       .join(", ")}`
 
-    await Model.withConnection(async (client: ClickHouseClient) => {
+    await this.connection.with(async (client: ClickHouseClient) => {
       await client.exec({ query: statement })
-    }, ...(this.credentials ? [{ credentials: this.credentials }] : []))
+    })
   }
 
   public async dropColumns(
@@ -73,9 +83,9 @@ export class MigrationRunner {
       ", "
     )}`
 
-    await Model.withConnection(async (client: ClickHouseClient) => {
+    await this.connection.with(async (client: ClickHouseClient) => {
       await client.exec({ query: statement })
-    }, ...(this.credentials ? [{ credentials: this.credentials }] : []))
+    })
   }
 
   public async updateColumns(
@@ -91,9 +101,9 @@ export class MigrationRunner {
       })
       .join(", ")}`
 
-    await Model.withConnection(async (client: ClickHouseClient) => {
+    await this.connection.with(async (client: ClickHouseClient) => {
       await client.exec({ query: statement })
-    }, ...(this.credentials ? [{ credentials: this.credentials }] : []))
+    })
   }
 
   private static getTypeString(type: Column["type"]): string {

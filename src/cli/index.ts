@@ -1,9 +1,13 @@
 import { MigrationService } from "../services/MigrationService"
-import { ConnectionCredentials } from "../utils/connection-manager"
+import {
+  ConnectionCredentials,
+  ConnectionManager,
+} from "../utils/connection-manager"
 
 // Get the model path from command line arguments
 const modelPath = process.argv[2]
 const outputPath = process.argv[3]
+
 if (!modelPath) {
   console.error("Error: Please provide a path to the model file")
   console.error("Usage: npm run generate-schema -- <path-to-model-file>")
@@ -17,6 +21,11 @@ const credentials: ConnectionCredentials = {
   password: process.env.CLICKHOUSE_PASSWORD || "",
   database: process.env.CLICKHOUSE_DATABASE || "default",
 }
+
+ConnectionManager.setDefault({
+  credentials: { ...credentials, database: "default" },
+})
+
 const migrationService = new MigrationService(outputPath, credentials)
 
 async function main() {
@@ -27,7 +36,7 @@ async function main() {
     })
   } else if (command === "readmigrations") {
     const migrations = migrationService.readMigrations()
-    console.log(JSON.stringify(migrations, null, 2))
+    console.log(migrations)
   } else if (command === "migrate") {
     await migrationService.migrate()
   }

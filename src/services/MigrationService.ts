@@ -6,7 +6,10 @@ import { Column } from "../@types"
 import { memoize } from "lodash"
 import { FieldsOf } from "../models/definitions/table-definition"
 import { MigrationRunner } from "./MigrationRunner"
-import { ConnectionCredentials } from "../utils/connection-manager"
+import {
+  ConnectionCredentials,
+  ConnectionManager,
+} from "../utils/connection-manager"
 
 type Migration = {
   name: string
@@ -137,9 +140,12 @@ export class MigrationService {
         const removedColumns = existingColumns.filter(
           c => !newColumns.includes(c)
         )
+
         const updatedColumns = newColumns.filter(
           c =>
-            JSON.stringify(existingColumns[c]) !== JSON.stringify(newColumns[c])
+            JSON.stringify(
+              existingSchema.columns.find(col => col.name === c)
+            ) !== JSON.stringify(newSchema.columns.find(col => col.name === c))
         )
 
         const addedFullColumns: Column[] = addedColumns.map(
@@ -269,7 +275,9 @@ export class MigrationService {
     const schema = MigrationTable.generateSchema()
     const runner = new MigrationRunner(this.credentials)
     await runner.createTable(schema)
-
+    ConnectionManager.setDefault({
+      credentials: this.credentials,
+    })
     const allMigrations = await new MigrationTable().objects.all()
     const migrationsToApply = this.migrations().filter(
       migration => !allMigrations.some(m => m.name === migration)
@@ -302,10 +310,14 @@ export class MigrationService {
       }
 
       // Record the migration as applied
-      await new MigrationTable({
+      const migrationTable = new MigrationTable({
+        credentials: this.credentials,
+      })
+      const migrationFile = migrationTable.create({
         name: migration,
         timestamp: Date.now(),
-      }).save()
+      })
+      await migrationFile.save()
     }
   }
 }

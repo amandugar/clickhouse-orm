@@ -79,19 +79,18 @@ export abstract class Model<
 > {
   protected static fields: FieldsOf<any> = {}
   public static tableDefinition: TableDefinition<any>
+  protected connectionConfig?: ConnectionConfig
 
   public objects: QueryBuilder<T, M>
+  public values: Partial<T> = {}
 
-  constructor(data?: Partial<T>) {
-    if (data) {
-      this.create(data)
-    }
+  constructor(connectionConfig?: ConnectionConfig) {
+    this.connectionConfig = connectionConfig
     const constructor = this.constructor as typeof Model<T, M>
-    this.objects = new QueryBuilder<T, M>(constructor)
+    this.objects = new QueryBuilder<T, M>(constructor, connectionConfig)
   }
 
-  public values: Partial<T> = {}
-  public create(data: Partial<T>) {
+  public create(data: Partial<T>): this {
     const constructor = this.constructor as typeof Model<T, M>
     const processFields = (fields: Record<string, Field>) => {
       Object.keys(fields).forEach(fieldName => {
@@ -166,6 +165,6 @@ export abstract class Model<
         values: [this.values],
         format: "JSONEachRow",
       })
-    })
+    }, this.connectionConfig)
   }
 }

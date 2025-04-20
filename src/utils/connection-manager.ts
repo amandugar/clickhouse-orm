@@ -34,6 +34,10 @@ export class ConnectionManager<
     this.config = config
   }
 
+  public getConfig(): ConnectionConfig<TCredentials> {
+    return this.config
+  }
+
   public static setDefault(
     config: ConnectionConfig<ConnectionCredentials>
   ): void {

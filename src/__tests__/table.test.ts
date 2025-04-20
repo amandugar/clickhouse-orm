@@ -85,6 +85,8 @@ describe("Model", () => {
     )
 
     const user2 = new UserModel({
+      credentials,
+    }).create({
       email: "test3@test.com",
       name: "Test2",
       id: 3,
@@ -136,7 +138,23 @@ describe("Model", () => {
 
     const queryRightNow = queryData.getQuery()
     expect(queryRightNow).toBe(
-      "SELECT * FROM users WHERE (NOT (id = 1 OR id = 2))"
+      "SELECT * FROM users WHERE ((NOT (id = 1 OR id = 2)))"
+    )
+
+    const query = new UserModel()
+
+    const queryData2 = query.objects.filter(
+      new Q<User>().or([
+        new Q<User>().and([{ id: 1 }, { name: "John" }]),
+        new Q<User>().not(
+          new Q<User>().or([{ id: 2 }, { email: "test@test.com" }])
+        ),
+      ])
+    )
+
+    const queryRightNow2 = queryData2.getQuery()
+    expect(queryRightNow2).toBe(
+      "SELECT * FROM users WHERE (((id = 1 AND name = 'John') OR (NOT (id = 2 OR email = 'test@test.com'))))"
     )
   })
 })
