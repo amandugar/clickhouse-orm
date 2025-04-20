@@ -81,21 +81,23 @@ export abstract class Model<
   protected static fields: FieldsOf<any> = {}
   protected static tableDefinition: TableDefinition<any>
 
-  constructor(data?: T) {
+  constructor(data?: Partial<T>) {
     if (data) {
       this.create(data)
     }
   }
 
-  public create(data: T) {
+  public values: Partial<T> = {}
+  public create(data: Partial<T>) {
     const constructor = this.constructor as typeof Model<T, M>
     const processFields = (fields: Record<string, Field>) => {
       Object.keys(fields).forEach(fieldName => {
         const field = fields[fieldName]
-        this[fieldName] =
-          data[fieldName as keyof typeof data] !== undefined
-            ? data[fieldName as keyof typeof data]
-            : field.getOptions().defaultValue
+        const key = fieldName as keyof T
+        this.values[key] =
+          data[key] !== undefined
+            ? (data[key] as T[keyof T])
+            : (field.getOptions().defaultValue as T[keyof T])
       })
     }
 
@@ -214,6 +216,8 @@ export abstract class Model<
     }
   }
 
+  private query = ""
+
   protected static async withConnection<
     R,
     C extends ConnectionCredentials = ConnectionCredentials
@@ -239,7 +243,7 @@ export abstract class Model<
 
     // Get the values for the regular fields
     const values = regularFields.map(fieldName => {
-      const value = this[fieldName as keyof this]
+      const value = this.values[fieldName as keyof T]
       if (value === undefined) {
         return "DEFAULT"
       }
@@ -259,7 +263,7 @@ export abstract class Model<
       })
     })
   }
-  public async find(options: FindOptions<T>) {
+  public find(options: FindOptions<T>) {
     const constructor = this.constructor as typeof Model
     const tableDefinition = constructor.tableDefinition
     const tableName = tableDefinition.tableName
@@ -282,35 +286,41 @@ export abstract class Model<
 
     const query = `${selectClause} FROM ${tableName} ${whereClause}`
 
-    const result = await constructor.withConnection(async client => {
+    this.query = query
+
+    return this
+  }
+
+  public async *[Symbol.asyncIterator](): AsyncIterator<T> {
+    const constructor = this.constructor as typeof Model
+    const withConnection = await constructor.withConnection(async client => {
       return await client.query({
-        query,
+        query: this.query,
         format: "JSONEachRow",
-        query_params: values,
       })
     })
 
-    const stream = result.stream()
-    const iterator = stream[Symbol.asyncIterator]() // This converts the stream to an iterator
+    const stream = withConnection.stream()
+    const iterator = stream[Symbol.asyncIterator]()
 
-    return {
-      async next(): Promise<Row<T, "JSONEachRow">[] | null> {
-        const { value, done } = await iterator.next()
-        if (done) return null
-        return value
-      },
-
-      async toArray(): Promise<Row<T, "JSONEachRow">[]> {
-        const rows: Row<T, "JSONEachRow">[] = []
-        for await (const row of stream) {
-          rows.push(...row)
-        }
-        return rows
-      },
+    for await (const row of iterator) {
+      for (const column of row) {
+        yield column.json() as T
+      }
     }
   }
 
-  public findAll() {
+  public async toArray() {
+    const array: T[] = []
+
+    for await (const row of this.findAll()) {
+      array.push(row)
+    }
+
+    return array
+  }
+
+  public *findAll(): Generator<T> {
     return this.find({ where: {} })
   }
 }

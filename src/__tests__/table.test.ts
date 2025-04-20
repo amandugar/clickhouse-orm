@@ -79,5 +79,18 @@ describe("Model", () => {
     expect(table).toBe(
       "CREATE TABLE IF NOT EXISTS users (id Int32, name String, email String, isActive Boolean, userName String MATERIALIZED concat(name, ' ', email)) ENGINE = MergeTree PARTITION BY name PRIMARY KEY (id) ORDER BY (id)"
     )
+
+    const user2 = new UserModel({
+      email: "test2@test.com",
+      name: "Test2",
+      id: 2,
+      isActive: false,
+    })
+
+    user2.values.email = "test3@test.com"
+
+    for await (const row of user2.findAll()) {
+      expect(row.email).not.toBeNull()
+    }
   })
 })
