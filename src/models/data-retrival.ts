@@ -1,8 +1,8 @@
-import { Model } from "./model"
+import { Model } from './model'
 
 export abstract class DataRetrival<
   T extends Record<string, unknown>,
-  M extends Record<string, unknown>
+  M extends Record<string, unknown>,
 > {
   abstract buildQuery(): string
   abstract getQuery(): string
@@ -14,10 +14,10 @@ export abstract class DataRetrival<
 
   public async *[Symbol.asyncIterator](): AsyncIterator<T> {
     this.buildQuery()
-    const withConnection = await this.model.withConnection(async client => {
+    const withConnection = await this.model.withConnection(async (client) => {
       return await client.query({
         query: this.getQuery(),
-        format: "JSONEachRow",
+        format: 'JSONEachRow',
       })
     })
 

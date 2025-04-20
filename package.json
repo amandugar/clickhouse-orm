@@ -5,16 +5,23 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc",
+    "clean": "rimraf dist",
     "test": "jest --forceExit --config jest.config.js",
+    "test:watch": "jest --watch --config jest.config.js",
+    "test:coverage": "jest --coverage --config jest.config.js",
+    "lint": "eslint . --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "prepare": "npm run clean && npm run build",
+    "prepublishOnly": "npm test && npm run lint",
     "makemigrations": "ts-node src/cli/index.ts",
     "readmigrations": "ts-node src/cli/index.ts",
-    "migrate": "ts-node src/cli/index.ts",
-    "prepare": "npm run build",
-    "prepublishOnly": "npm test"
+    "migrate": "ts-node src/cli/index.ts"
   },
   "keywords": [
     "clickhouse",
@@ -25,16 +32,30 @@
   ],
   "author": "",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/clickhouse-orm.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/clickhouse-orm/issues"
+  },
+  "homepage": "https://github.com/yourusername/clickhouse-orm#readme",
   "dependencies": {
     "@clickhouse/client": "^1.11.1",
-    "@tsconfig/node20": "^20.1.5",
-    "@types/lodash": "^4.17.16",
-    "lodash": "^4.17.21",
-    "ts-node": "^10.9.2"
+    "lodash": "^4.17.21"
   },
   "devDependencies": {
+    "@tsconfig/node20": "^20.1.5",
     "@types/jest": "^29.5.14",
+    "@types/lodash": "^4.17.16",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.0",
     "jest": "^29.7.0",
+    "prettier": "^3.0.0",
+    "rimraf": "^5.0.0",
     "ts-jest": "^29.3.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.0.0"

@@ -1,10 +1,10 @@
-import { ClickHouseClient } from "@clickhouse/client"
-import { Schema } from "../models/model"
-import { Column } from "../@types"
+import { ClickHouseClient } from '@clickhouse/client'
+import { Schema } from '../models/model'
+import { Column } from '../@types'
 import {
   ConnectionCredentials,
   ConnectionManager,
-} from "../utils/connection-manager"
+} from '../utils/connection-manager'
 
 export class MigrationRunner {
   private connection: ConnectionManager
@@ -18,7 +18,7 @@ export class MigrationRunner {
   }
 
   public static createTableStatement(schema: Schema): string {
-    const columns = schema.columns.map(column => {
+    const columns = schema.columns.map((column) => {
       let columnDef = `${column.name} ${this.getTypeString(column.type)}`
       const expression = column.expression
       if (expression) {
@@ -30,17 +30,17 @@ export class MigrationRunner {
       return columnDef
     })
 
-    const columnsString = columns.join(", ")
+    const columnsString = columns.join(', ')
     const partitionByStatement = schema.partitionBy
       ? `PARTITION BY ${schema.partitionBy}`
-      : ""
+      : ''
     const primaryKeyStatement = schema.primaryKey
-      ? `PRIMARY KEY (${schema.primaryKey.join(", ")})`
-      : ""
+      ? `PRIMARY KEY (${schema.primaryKey.join(', ')})`
+      : ''
     const orderByStatement =
       schema.orderBy && schema.orderBy.length > 0
-        ? `ORDER BY (${schema.orderBy.join(", ")})`
-        : ""
+        ? `ORDER BY (${schema.orderBy.join(', ')})`
+        : ''
 
     return `CREATE TABLE IF NOT EXISTS ${schema.tableName} (${columnsString}) ENGINE = ${schema.engine} ${partitionByStatement} ${primaryKeyStatement} ${orderByStatement}`.trim()
   }
@@ -62,13 +62,13 @@ export class MigrationRunner {
 
   public async addColumns(tableName: string, columns: Column[]): Promise<void> {
     const statement = `ALTER TABLE ${tableName} ADD COLUMN ${columns
-      .map(c => {
+      .map((c) => {
         const expression = c.expression
         return `${c.name} ${MigrationRunner.getTypeString(c.type)}${
-          expression ? ` MATERIALIZED ${expression}` : ""
-        }${c.default ? ` DEFAULT ${c.default}` : ""}`
+          expression ? ` MATERIALIZED ${expression}` : ''
+        }${c.default ? ` DEFAULT ${c.default}` : ''}`
       })
-      .join(", ")}`
+      .join(', ')}`
 
     await this.connection.with(async (client: ClickHouseClient) => {
       await client.exec({ query: statement })
@@ -77,10 +77,10 @@ export class MigrationRunner {
 
   public async dropColumns(
     tableName: string,
-    columns: string[]
+    columns: string[],
   ): Promise<void> {
     const statement = `ALTER TABLE ${tableName} DROP COLUMN ${columns.join(
-      ", "
+      ', ',
     )}`
 
     await this.connection.with(async (client: ClickHouseClient) => {
@@ -90,24 +90,24 @@ export class MigrationRunner {
 
   public async updateColumns(
     tableName: string,
-    columns: Column[]
+    columns: Column[],
   ): Promise<void> {
     const statement = `ALTER TABLE ${tableName} MODIFY COLUMN ${columns
-      .map(c => {
+      .map((c) => {
         const expression = c.expression
         return `${c.name} ${MigrationRunner.getTypeString(c.type)}${
-          expression ? ` MATERIALIZED ${expression}` : ""
-        }${c.default ? ` DEFAULT ${c.default}` : ""}`
+          expression ? ` MATERIALIZED ${expression}` : ''
+        }${c.default ? ` DEFAULT ${c.default}` : ''}`
       })
-      .join(", ")}`
+      .join(', ')}`
 
     await this.connection.with(async (client: ClickHouseClient) => {
       await client.exec({ query: statement })
     })
   }
 
-  private static getTypeString(type: Column["type"]): string {
-    if (typeof type === "string") {
+  private static getTypeString(type: Column['type']): string {
+    if (typeof type === 'string') {
       return type
     }
     return String(type)

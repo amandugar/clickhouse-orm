@@ -1,15 +1,15 @@
-import path from "path"
-import fs from "fs"
-import { Model, NumberField, StringField, TableDefinition } from "../models"
-import { Schema, SchemaChanges } from "../models/model"
-import { Column } from "../@types"
-import { memoize } from "lodash"
-import { FieldsOf } from "../models/definitions/table-definition"
-import { MigrationRunner } from "./MigrationRunner"
+import path from 'path'
+import fs from 'fs'
+import { Model, NumberField, StringField, TableDefinition } from '../models'
+import { Schema, SchemaChanges } from '../models/model'
+import { Column } from '../@types'
+import { memoize } from 'lodash'
+import { FieldsOf } from '../models/definitions/table-definition'
+import { MigrationRunner } from './MigrationRunner'
 import {
   ConnectionCredentials,
   ConnectionManager,
-} from "../utils/connection-manager"
+} from '../utils/connection-manager'
 
 type Migration = {
   name: string
@@ -18,9 +18,9 @@ type Migration = {
 
 class MigrationTable extends Model<Migration> {
   static tableDefinition: TableDefinition<Migration> = {
-    tableName: "migrations",
-    engine: "MergeTree",
-    orderBy: ["name"],
+    tableName: 'migrations',
+    engine: 'MergeTree',
+    orderBy: ['name'],
   }
 
   protected static fields: FieldsOf<Migration> = {
@@ -42,42 +42,43 @@ export class MigrationService {
     return fs.readdirSync(this.migrationsPath)
   })
 
-  public readMigrations(): SchemaChanges<any, any>[] {
+  public readMigrations(): SchemaChanges[] {
     const migrations = this.migrations()
-    return migrations.map(migration => {
+    return migrations.map((migration) => {
       const filePath = path.resolve(`${this.migrationsPath}/${migration}`)
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const diff = require(filePath).diff
       return diff
     })
   }
 
-  private mergeMigrations(migrations: SchemaChanges<any, any>[]): Schema[] {
+  private mergeMigrations(migrations: SchemaChanges[]): Schema[] {
     let mergedMigrations: Schema[] = []
     for (const migration of migrations) {
       if (mergedMigrations.length === 0) {
         for (const change of migration) {
-          if (change.changes.type === "CREATE") {
+          if (change.changes.type === 'CREATE') {
             mergedMigrations.push(change.changes.schema)
           } else {
-            throw new Error("Cannot merge migrations with existing models")
+            throw new Error('Cannot merge migrations with existing models')
           }
         }
       } else {
         for (const change of migration) {
-          if (change.changes.type === "CREATE") {
+          if (change.changes.type === 'CREATE') {
             mergedMigrations.push(change.changes.schema)
-          } else if (change.changes.type === "UPDATE") {
+          } else if (change.changes.type === 'UPDATE') {
             const changeTableName = change.changes.tableName
             const addColumns = change.changes.add ?? []
             const removeColumns = change.changes.remove ?? []
             const updateColumns = change.changes.update ?? []
 
             const schema = mergedMigrations.find(
-              m => m.tableName === changeTableName
+              (m) => m.tableName === changeTableName,
             )
 
             if (!schema) {
-              throw new Error("Cannot find schema for table")
+              throw new Error('Cannot find schema for table')
             }
 
             for (const column of addColumns) {
@@ -85,24 +86,24 @@ export class MigrationService {
             }
 
             for (const column of removeColumns) {
-              schema.columns = schema.columns.filter(c => c.name !== column)
+              schema.columns = schema.columns.filter((c) => c.name !== column)
             }
 
             for (const column of updateColumns) {
               const columnIndex = schema.columns.findIndex(
-                c => c.name === column.name
+                (c) => c.name === column.name,
               )
 
               if (columnIndex === -1) {
-                throw new Error("Cannot find column to update")
+                throw new Error('Cannot find column to update')
               }
 
               schema.columns[columnIndex] = column
             }
-          } else if (change.changes.type === "DROP") {
+          } else if (change.changes.type === 'DROP') {
             const changeTableName = change.changes.schema.tableName
             mergedMigrations = mergedMigrations.filter(
-              m => m.tableName !== changeTableName
+              (m) => m.tableName !== changeTableName,
             )
           }
         }
@@ -114,46 +115,47 @@ export class MigrationService {
 
   private diffSchemas(
     existingSchemas: Schema[],
-    newSchemas: Schema[]
-  ): SchemaChanges<any, any> {
-    const diff: SchemaChanges<any, any> = []
+    newSchemas: Schema[],
+  ): SchemaChanges {
+    const diff: SchemaChanges = []
 
     for (const newSchema of newSchemas) {
       const existingSchema = existingSchemas.find(
-        s => s.tableName === newSchema.tableName
+        (s) => s.tableName === newSchema.tableName,
       )
 
       if (!existingSchema) {
         diff.push({
-          changes: { type: "CREATE", schema: newSchema },
+          changes: { type: 'CREATE', schema: newSchema },
         })
         continue
       }
 
       if (existingSchema) {
-        const existingColumns = existingSchema.columns.map(c => c.name)
-        const newColumns = newSchema.columns.map(c => c.name)
+        const existingColumns = existingSchema.columns.map((c) => c.name)
+        const newColumns = newSchema.columns.map((c) => c.name)
 
         const addedColumns = newColumns.filter(
-          c => !existingColumns.includes(c)
+          (c) => !existingColumns.includes(c),
         )
         const removedColumns = existingColumns.filter(
-          c => !newColumns.includes(c)
+          (c) => !newColumns.includes(c),
         )
 
         const updatedColumns = newColumns.filter(
-          c =>
+          (c) =>
             JSON.stringify(
-              existingSchema.columns.find(col => col.name === c)
-            ) !== JSON.stringify(newSchema.columns.find(col => col.name === c))
+              existingSchema.columns.find((col) => col.name === c),
+            ) !==
+            JSON.stringify(newSchema.columns.find((col) => col.name === c)),
         )
 
         const addedFullColumns: Column[] = addedColumns.map(
-          c => newSchema.columns.find(col => col.name === c) as Column
+          (c) => newSchema.columns.find((col) => col.name === c) as Column,
         )
 
         const updatedFullColumns: Column[] = updatedColumns.map(
-          c => newSchema.columns.find(col => col.name === c) as Column
+          (c) => newSchema.columns.find((col) => col.name === c) as Column,
         )
 
         if (
@@ -163,7 +165,7 @@ export class MigrationService {
         ) {
           diff.push({
             changes: {
-              type: "UPDATE" as const,
+              type: 'UPDATE' as const,
               tableName: newSchema.tableName,
               ...(addedColumns.length > 0 ? { add: addedFullColumns } : {}),
               ...(removedColumns.length > 0 ? { remove: removedColumns } : {}),
@@ -176,17 +178,17 @@ export class MigrationService {
       }
     }
 
-    const newSchemasTableNames = newSchemas.map(s => s.tableName)
-    const existingSchemasTableNames = existingSchemas.map(s => s.tableName)
+    const newSchemasTableNames = newSchemas.map((s) => s.tableName)
+    const existingSchemasTableNames = existingSchemas.map((s) => s.tableName)
 
     const droppedSchemas = existingSchemasTableNames.filter(
-      s => !newSchemasTableNames.includes(s)
+      (s) => !newSchemasTableNames.includes(s),
     )
 
     for (const schema of droppedSchemas) {
       diff.push({
         changes: {
-          type: "DROP",
+          type: 'DROP',
           schema: {
             tableName: schema,
           },
@@ -208,6 +210,7 @@ export class MigrationService {
       }
 
       // Import the models dynamically
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const models = require(absolutePath)
 
       console.log(`Generating schema from ${modelPath}:`)
@@ -216,16 +219,19 @@ export class MigrationService {
       const modelEntries = Object.entries(models.default || models)
 
       if (modelEntries.length === 0) {
-        throw new Error("No models found in the specified file")
+        throw new Error('No models found in the specified file')
       }
 
       const currentSchemas: Schema[] = []
 
       for (const [modelName, ModelClass] of modelEntries) {
-        let model: typeof Model<any, any> = ModelClass as typeof Model<any, any>
-        if (typeof model.generateSchema !== "function") {
+        const model: typeof Model<any, any> = ModelClass as typeof Model<
+          any,
+          any
+        >
+        if (typeof model.generateSchema !== 'function') {
           console.error(
-            `Error: ${modelName} does not have a generateSchema method`
+            `Error: ${modelName} does not have a generateSchema method`,
           )
           continue
         }
@@ -249,24 +255,22 @@ export class MigrationService {
       })[this.migrations().length - 1]
 
       if (Object.keys(diff).length === 0) {
-        console.log("No changes to the schema")
+        console.log('No changes to the schema')
         return
       }
 
       const fileString = `
         export const diff = ${JSON.stringify(diff, null, 2)}
         
-        export const dependencies = ${
-          lastFileSorted ? `['${lastFileSorted}']` : `[]`
-        }
+        export const dependencies = ${lastFileSorted ? `['${lastFileSorted}']` : `[]`}
       `
 
       fs.writeFileSync(
         path.resolve(`${this.migrationsPath}/${Date.now()}-migration.ts`),
-        fileString
+        fileString,
       )
     } catch (error) {
-      console.error("Error generating schema:", error)
+      console.error('Error generating schema:', error)
       throw error
     }
   }
@@ -280,17 +284,18 @@ export class MigrationService {
     })
     const allMigrations = await new MigrationTable().objects.all()
     const migrationsToApply = this.migrations().filter(
-      migration => !allMigrations.some(m => m.name === migration)
+      (migration) => !allMigrations.some((m) => m.name === migration),
     )
 
     for (const migration of migrationsToApply) {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const diff = require(path.resolve(`${this.migrationsPath}/${migration}`))
-        .diff as SchemaChanges<any, any>
+        .diff as SchemaChanges
 
       for (const change of diff) {
-        if (change.changes.type === "CREATE") {
+        if (change.changes.type === 'CREATE') {
           await runner.createTable(change.changes.schema)
-        } else if (change.changes.type === "UPDATE") {
+        } else if (change.changes.type === 'UPDATE') {
           const { tableName, add, remove, update } = change.changes
 
           if (add && add.length > 0) {
@@ -304,7 +309,7 @@ export class MigrationService {
           if (update && update.length > 0) {
             await runner.updateColumns(tableName, update)
           }
-        } else if (change.changes.type === "DROP") {
+        } else if (change.changes.type === 'DROP') {
           await runner.dropTable(change.changes.schema.tableName)
         }
       }

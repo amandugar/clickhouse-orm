@@ -1,7 +1,7 @@
-import { Engine } from "../utils/engines"
+import { Engine } from '../utils/engines'
 
 export type BaseColumn<
-  T extends Record<string, unknown> = Record<string, unknown>
+  T extends Record<string, unknown> = Record<string, unknown>,
 > = {
   name: Extract<keyof T, string>
   /**
@@ -26,7 +26,7 @@ export type StringColumn<T extends Record<string, unknown>> = BaseColumn<T> & {
 }
 
 export type Column<
-  T extends Record<string, unknown> = Record<string, unknown>
+  T extends Record<string, unknown> = Record<string, unknown>,
 > = NumberColumn<T> | BooleanColumn<T> | StringColumn<T>
 
 export interface ClickhouseTable<T extends Record<string, unknown>> {
