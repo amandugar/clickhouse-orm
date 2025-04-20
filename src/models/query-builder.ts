@@ -2,7 +2,7 @@ import { Model } from "./model"
 
 type Condition = {
   field: string
-  value: any
+  value: number | string | boolean
   operator: string
 }
 
@@ -12,11 +12,41 @@ export class QueryBuilder<T extends Record<string, unknown>> {
   private excludeConditions: Condition[] = []
   private query: string = ""
   private model: typeof Model
+  private _offset: number = 0
+  private _limit: number | undefined = undefined
+  private _project: string = "*"
 
   constructor(model: typeof Model) {
     this.tableName = model.tableDefinition.tableName
     this.query = `SELECT * FROM ${this.tableName}`
     this.model = model
+  }
+
+  public project<E extends Record<string, string>>(projects: (E & keyof T)[]) {
+    let statements: string[] = []
+
+    for (const field of projects) {
+      let temp = ""
+      if (typeof field === "string") {
+        temp = `${field}`
+      } else {
+        temp = `${field.key} as ${field.value}`
+      }
+      statements.push(temp)
+    }
+
+    this._project = statements.join(", ")
+    return this
+  }
+
+  public offset(offset: number) {
+    this._offset = offset
+    return this
+  }
+
+  public limit(limit: number) {
+    this._limit = limit
+    return this
   }
 
   public filter(conditions: Partial<T>) {
@@ -59,7 +89,12 @@ export class QueryBuilder<T extends Record<string, unknown>> {
             .join(" AND ")
         : ""
 
-    this.query = `SELECT * FROM ${this.tableName} ${whereClause}`
+    this.query = `SELECT ${this._project} FROM ${
+      this.tableName
+    } ${whereClause} ${this._offset ? `OFFSET ${this._offset}` : ""} ${
+      this._limit ? `LIMIT ${this._limit}` : ""
+    }`
+
     return this.query
   }
 
