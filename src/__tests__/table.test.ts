@@ -81,16 +81,23 @@ describe("Model", () => {
     )
 
     const user2 = new UserModel({
-      email: "test2@test.com",
+      email: "test3@test.com",
       name: "Test2",
-      id: 2,
+      id: 3,
       isActive: false,
     })
 
-    user2.values.email = "test3@test.com"
+    await user2.save()
+    const query = user2.objects.filter({ email: "test3@test.com" })
 
-    for await (const row of user2.findAll()) {
-      expect(row.email).not.toBeNull()
+    for await (const row of query) {
+      expect(row.email).toBe("test3@test.com")
+    }
+
+    const query2 = query.exclude({ id: 3 })
+
+    for await (const row of query2) {
+      expect(row.id).not.toBe(3)
     }
   })
 })

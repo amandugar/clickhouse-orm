@@ -6,19 +6,13 @@ import {
   ConnectionConfig,
 } from "../utils/connection-manager"
 import { ClickHouseClient, Row } from "@clickhouse/client"
+import { QueryBuilder } from "./query-builder"
 
 /**
  * @description
  * <T> is the type of the normal fields
  * <M> is the type of the materialized fields
  */
-
-type FindOptions<T extends Record<string, unknown>> = {
-  where: {
-    [K in keyof T]?: T[K]
-  }
-  projection?: (keyof T)[]
-}
 
 type Column = {
   name: string
@@ -79,12 +73,16 @@ export abstract class Model<
   M extends Record<string, unknown> = T
 > {
   protected static fields: FieldsOf<any> = {}
-  protected static tableDefinition: TableDefinition<any>
+  public static tableDefinition: TableDefinition<any>
+
+  public objects: QueryBuilder<T>
 
   constructor(data?: Partial<T>) {
     if (data) {
       this.create(data)
     }
+    const constructor = this.constructor as typeof Model<T, M>
+    this.objects = new QueryBuilder<T>(constructor)
   }
 
   public values: Partial<T> = {}
@@ -216,9 +214,7 @@ export abstract class Model<
     }
   }
 
-  private query = ""
-
-  protected static async withConnection<
+  public static async withConnection<
     R,
     C extends ConnectionCredentials = ConnectionCredentials
   >(
@@ -236,91 +232,12 @@ export abstract class Model<
     const tableDefinition = constructor.tableDefinition
     const tableName = tableDefinition.tableName
 
-    // Get only the regular fields (excluding materialized fields)
-    const regularFields = Object.keys(constructor.fields).filter(
-      fieldName => !constructor.fields[fieldName].getMaterializedStatement()
-    )
-
-    // Get the values for the regular fields
-    const values = regularFields.map(fieldName => {
-      const value = this.values[fieldName as keyof T]
-      if (value === undefined) {
-        return "DEFAULT"
-      }
-      if (typeof value === "string") {
-        return `'${value}'`
-      }
-      return value
-    })
-
-    const query = `INSERT INTO ${tableName} (${regularFields.join(
-      ", "
-    )}) VALUES (${values.join(", ")})`
-
     await constructor.withConnection(async client => {
-      await client.exec({
-        query,
-      })
-    })
-  }
-  public find(options: FindOptions<T>) {
-    const constructor = this.constructor as typeof Model
-    const tableDefinition = constructor.tableDefinition
-    const tableName = tableDefinition.tableName
-
-    const values: Record<string, any> = {}
-    const whereClause =
-      options.where && Object.keys(options.where).length > 0
-        ? "WHERE " +
-          Object.entries(options.where)
-            .map(([key, value], index) => {
-              values[`val${index}`] = value
-              return `${key} = {val${index}:String}`
-            })
-            .join(" AND ")
-        : ""
-
-    const selectClause = options.projection
-      ? `SELECT ${options.projection.join(", ")}`
-      : "SELECT *"
-
-    const query = `${selectClause} FROM ${tableName} ${whereClause}`
-
-    this.query = query
-
-    return this
-  }
-
-  public async *[Symbol.asyncIterator](): AsyncIterator<T> {
-    const constructor = this.constructor as typeof Model
-    const withConnection = await constructor.withConnection(async client => {
-      return await client.query({
-        query: this.query,
+      await client.insert({
+        table: tableName,
+        values: [this.values],
         format: "JSONEachRow",
       })
     })
-
-    const stream = withConnection.stream()
-    const iterator = stream[Symbol.asyncIterator]()
-
-    for await (const row of iterator) {
-      for (const column of row) {
-        yield column.json() as T
-      }
-    }
-  }
-
-  public async toArray() {
-    const array: T[] = []
-
-    for await (const row of this.findAll()) {
-      array.push(row)
-    }
-
-    return array
-  }
-
-  public *findAll(): Generator<T> {
-    return this.find({ where: {} })
   }
 }
