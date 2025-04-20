@@ -1,0 +1,25 @@
+# Source files
+src/
+*.ts
+!*.d.ts
+
+# Test files
+test/
+*.test.ts
+jest.config.js
+
+# Development files
+.git/
+.gitignore
+.cursor/
+tsconfig.json
+package-lock.json
+
+# Documentation
+*.md
+!README.md
+
+# Environment files
+.env
+.env.*
+!.env.example

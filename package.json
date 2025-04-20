@@ -1,14 +1,28 @@
 {
   "name": "clickhouse-orm",
   "version": "1.0.0",
-  "description": "A simple ORM for ClickHouse",
-  "main": "index.js",
+  "description": "A TypeScript ORM for ClickHouse with migrations support",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
+    "build": "tsc",
     "test": "jest --forceExit --config jest.config.js",
     "makemigrations": "ts-node src/cli/index.ts",
     "readmigrations": "ts-node src/cli/index.ts",
-    "migrate": "ts-node src/cli/index.ts"
+    "migrate": "ts-node src/cli/index.ts",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm test"
   },
+  "keywords": [
+    "clickhouse",
+    "orm",
+    "typescript",
+    "database",
+    "migrations"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -22,7 +36,8 @@
     "@types/jest": "^29.5.14",
     "jest": "^29.7.0",
     "ts-jest": "^29.3.2",
-    "ts-node": "^10.9.2"
+    "ts-node": "^10.9.2",
+    "typescript": "^5.0.0"
   },
   "engines": {
     "node": ">=18.17.1"
