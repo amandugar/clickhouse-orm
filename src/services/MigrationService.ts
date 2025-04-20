@@ -2,14 +2,14 @@ import path from 'path'
 import fs from 'fs'
 import { Model, NumberField, StringField, TableDefinition } from '../models'
 import { Schema, SchemaChanges } from '../models/model'
-import { Column } from '../@types'
 import { memoize } from 'lodash'
-import { FieldsOf } from '../models/definitions/table-definition'
+import { FieldsOf } from '../models/types/table-definition'
 import { MigrationRunner } from './MigrationRunner'
 import {
   ConnectionCredentials,
   ConnectionManager,
-} from '../utils/connection-manager'
+} from '../utils/database/connection-manager'
+import { Column } from '../@types'
 
 type Migration = {
   name: string

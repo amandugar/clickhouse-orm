@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+dist/
+build/
+
+# Build output
+*.js
+!*.config.js
+
+# Coverage directory
+coverage/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Package files
+package-lock.json
+yarn.lock
+
+# Documentation
+*.md
+*.txt
+*.pdf
+*.doc
+*.docx
+
+# Images and media
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.ico
+*.mp4
+*.webm
+*.ogg
+*.mp3
+*.wav
+*.flac 

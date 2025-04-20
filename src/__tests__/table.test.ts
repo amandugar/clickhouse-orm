@@ -10,7 +10,7 @@ import {
 import {
   FieldsOf,
   MergeTreeTableDefinition,
-} from '../models/definitions/table-definition'
+} from '../models/types/table-definition'
 import { Q } from '../models/query-builder'
 import { MigrationRunner } from '../services/MigrationRunner'
 import {

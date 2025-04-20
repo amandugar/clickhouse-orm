@@ -20,6 +20,6 @@ export {
 
 // Export types
 export * from './models/fields/base-field'
-export * from './models/definitions/table-definition'
+export * from './models/types/table-definition'
 export * from './models/model'
 export * from './@types'

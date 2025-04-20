@@ -1,10 +1,10 @@
 import { Field, FieldType } from './fields/base-field'
-import { TableDefinition, FieldsOf } from './definitions/table-definition'
+import { TableDefinition, FieldsOf } from './types/table-definition'
 import {
   ConnectionManager,
   ConnectionCredentials,
   ConnectionConfig,
-} from '../utils/connection-manager'
+} from '../utils/database/connection-manager'
 import { ClickHouseClient } from '@clickhouse/client'
 import { QueryBuilder } from './query-builder'
 

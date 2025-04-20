@@ -1,8 +1,5 @@
 import { NumberField, StringField } from '../models'
-import {
-  FieldsOf,
-  TableDefinition,
-} from '../models/definitions/table-definition'
+import { FieldsOf, TableDefinition } from '../models/types/table-definition'
 import { Model } from '../models/model'
 
 type UserSchema = {
