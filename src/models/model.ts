@@ -1,12 +1,12 @@
-import { Field, FieldType } from "./fields/base-field"
-import { TableDefinition, FieldsOf } from "./definitions/table-definition"
+import { Field, FieldType } from './fields/base-field'
+import { TableDefinition, FieldsOf } from './definitions/table-definition'
 import {
   ConnectionManager,
   ConnectionCredentials,
   ConnectionConfig,
-} from "../utils/connection-manager"
-import { ClickHouseClient, Row } from "@clickhouse/client"
-import { QueryBuilder } from "./query-builder"
+} from '../utils/connection-manager'
+import { ClickHouseClient } from '@clickhouse/client'
+import { QueryBuilder } from './query-builder'
 
 /**
  * @description
@@ -30,43 +30,31 @@ export type Schema = {
   primaryKey?: string[]
 }
 
-type NewModel<
-  T extends Record<string, unknown>,
-  M extends Record<string, unknown>
-> = {
-  type: "CREATE"
+type NewModel = {
+  type: 'CREATE'
   schema: Schema
 }
 
 type DropModel = {
-  type: "DROP"
+  type: 'DROP'
   schema: { tableName: string }
 }
 
 type ExistingModel = {
-  type: "UPDATE"
+  type: 'UPDATE'
   add?: Column[]
   remove?: string[]
   update?: Column[]
   tableName: string
 }
 
-type Change<
-  T extends Record<string, unknown>,
-  M extends Record<string, unknown>
-> = NewModel<T, M> | ExistingModel | DropModel
+type Change = NewModel | ExistingModel | DropModel
 
-export type SchemaChange<
-  T extends Record<string, unknown>,
-  M extends Record<string, unknown>
-> = {
-  changes: Change<T, M>
+export type SchemaChange = {
+  changes: Change
 }
 
-export type SchemaChanges<
-  T extends Record<string, unknown>,
-  M extends Record<string, unknown>
-> = SchemaChange<T, M>[]
+export type SchemaChanges = SchemaChange[]
 
 /**
  * Here T stands for the normal fields
@@ -75,7 +63,7 @@ export type SchemaChanges<
 
 export abstract class Model<
   T extends Record<string, unknown>,
-  M extends Record<string, unknown> = T
+  M extends Record<string, unknown> = T,
 > {
   protected static fields: FieldsOf<any> = {}
   public static tableDefinition: TableDefinition<any>
@@ -93,7 +81,7 @@ export abstract class Model<
   public create(data: Partial<T>): this {
     const constructor = this.constructor as typeof Model<T, M>
     const processFields = (fields: Record<string, Field>) => {
-      Object.keys(fields).forEach(fieldName => {
+      Object.keys(fields).forEach((fieldName) => {
         const field = fields[fieldName]
         const key = fieldName as keyof T
         this.values[key] =
@@ -103,7 +91,7 @@ export abstract class Model<
       })
     }
 
-    processFields(constructor["fields"])
+    processFields(constructor['fields'])
 
     return this
   }
@@ -114,14 +102,14 @@ export abstract class Model<
     })
 
     if (!this.tableDefinition) {
-      throw new Error("Table definition is required")
+      throw new Error('Table definition is required')
     }
   }
 
   public static generateSchema(): Schema {
     const tableDefinition = this.tableDefinition
     const tableName = tableDefinition.tableName
-    const columns: Column[] = Object.keys(this.fields).map(fieldName => {
+    const columns: Column[] = Object.keys(this.fields).map((fieldName) => {
       const field = this.fields[fieldName]
       return {
         name: fieldName,
@@ -143,10 +131,10 @@ export abstract class Model<
 
   public static async withConnection<
     R,
-    C extends ConnectionCredentials = ConnectionCredentials
+    C extends ConnectionCredentials = ConnectionCredentials,
   >(
     operation: (client: ClickHouseClient) => Promise<R>,
-    config?: ConnectionConfig<C>
+    config?: ConnectionConfig<C>,
   ): Promise<R> {
     const connectionManager = config
       ? ConnectionManager.getInstance<C>(config)
@@ -159,11 +147,11 @@ export abstract class Model<
     const tableDefinition = constructor.tableDefinition
     const tableName = tableDefinition.tableName
 
-    await constructor.withConnection(async client => {
+    await constructor.withConnection(async (client) => {
       await client.insert({
         table: tableName,
         values: [this.values],
-        format: "JSONEachRow",
+        format: 'JSONEachRow',
       })
     }, this.connectionConfig)
   }

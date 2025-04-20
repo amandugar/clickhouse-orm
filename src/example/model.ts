@@ -1,9 +1,9 @@
-import { NumberField, StringField } from "../models"
+import { NumberField, StringField } from '../models'
 import {
   FieldsOf,
   TableDefinition,
-} from "../models/definitions/table-definition"
-import { Model } from "../models/model"
+} from '../models/definitions/table-definition'
+import { Model } from '../models/model'
 
 type UserSchema = {
   id: number
@@ -25,9 +25,9 @@ class User extends Model<UserSchema> {
   }
 
   static tableDefinition: TableDefinition<UserSchema> = {
-    tableName: "users",
-    engine: "MergeTree",
-    orderBy: ["createdAt"],
+    tableName: 'users',
+    engine: 'MergeTree',
+    orderBy: ['createdAt'],
   }
 }
 
@@ -51,9 +51,9 @@ class Post extends Model<PostSchema> {
   }
 
   static tableDefinition: TableDefinition<PostSchema> = {
-    tableName: "posts",
-    engine: "MergeTree",
-    orderBy: ["createdAt"],
+    tableName: 'posts',
+    engine: 'MergeTree',
+    orderBy: ['createdAt'],
   }
 }
 

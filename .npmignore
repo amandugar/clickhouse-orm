@@ -1,25 +1,27 @@
-# Source files
-src/
-*.ts
-!*.d.ts
-
-# Test files
-test/
-*.test.ts
-jest.config.js
-
 # Development files
-.git/
-.gitignore
-.cursor/
+src/
+test/
+jest.config.js
 tsconfig.json
-package-lock.json
+.eslintrc.json
+.prettierrc
+.gitignore
+.git/
+
+# Build files
+dist/**/*.map
+dist/**/*.test.*
 
 # Documentation
+docs/
 *.md
 !README.md
+!LICENSE
 
-# Environment files
+# Misc
 .env
 .env.*
-!.env.example
+*.log
+.vscode/
+.idea/
+.cursor/

@@ -1,4 +1,4 @@
-import { Field } from "../fields/base-field"
+import { Field } from '../fields/base-field'
 
 export interface BaseTableDefinition<T extends Record<string, unknown>> {
   tableName: string
@@ -9,7 +9,7 @@ export interface BaseTableDefinition<T extends Record<string, unknown>> {
 
 export interface MergeTreeTableDefinition<T extends Record<string, unknown>>
   extends BaseTableDefinition<T> {
-  engine: "MergeTree"
+  engine: 'MergeTree'
 }
 
 export type TableDefinition<T extends Record<string, unknown>> =

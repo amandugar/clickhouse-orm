@@ -1,5 +1,5 @@
-import { Field } from "./base-field"
-import { StringFieldOptions, StringFieldTypes } from "./field-types"
+import { Field } from './base-field'
+import { StringFieldOptions, StringFieldTypes } from './field-types'
 
 export class StringField extends Field {
   protected type: StringFieldTypes = StringFieldTypes.String

@@ -1,2 +1,7 @@
 node_modules
 src/example/migrations/*
+.env
+.env.*
+*.log
+.vscode/
+dist/

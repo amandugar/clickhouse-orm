@@ -1,3 +1,3 @@
 export enum Engine {
-  MERGE_TREE = "MergeTree",
+  MERGE_TREE = 'MergeTree',
 }

@@ -1,4 +1,4 @@
-import { ClickHouseClient, createClient } from "@clickhouse/client"
+import { ClickHouseClient, createClient } from '@clickhouse/client'
 
 /**
  * Interface for connection credentials
@@ -11,7 +11,7 @@ export interface ConnectionCredentials {
 }
 
 export interface ConnectionConfig<
-  TCredentials extends ConnectionCredentials = ConnectionCredentials
+  TCredentials extends ConnectionCredentials = ConnectionCredentials,
 > {
   credentials: TCredentials
   options?: {
@@ -23,7 +23,7 @@ export interface ConnectionConfig<
  * Generic connection manager that supports multi-tenancy
  */
 export class ConnectionManager<
-  TCredentials extends ConnectionCredentials = ConnectionCredentials
+  TCredentials extends ConnectionCredentials = ConnectionCredentials,
 > {
   private static instances = new Map<string, ConnectionManager>()
   private static defaultInstance: ConnectionManager | null = null
@@ -39,20 +39,20 @@ export class ConnectionManager<
   }
 
   public static setDefault(
-    config: ConnectionConfig<ConnectionCredentials>
+    config: ConnectionConfig<ConnectionCredentials>,
   ): void {
     this.defaultInstance = new ConnectionManager(config)
   }
 
   public static getDefault(): ConnectionManager {
     if (!this.defaultInstance) {
-      throw new Error("Default connection configuration not set")
+      throw new Error('Default connection configuration not set')
     }
     return this.defaultInstance
   }
 
   public static createDatabase(name: string): void {
-    this.getDefault().with(client => {
+    this.getDefault().with((client) => {
       return client.query({
         query: `CREATE DATABASE IF NOT EXISTS ${name}`,
       })
@@ -63,12 +63,12 @@ export class ConnectionManager<
    * Get a connection manager instance for a specific host
    */
   public static getInstance<T extends ConnectionCredentials>(
-    config: ConnectionConfig<T>
+    config: ConnectionConfig<T>,
   ): ConnectionManager<T> {
     if (!this.instances.has(config.credentials.url)) {
       this.instances.set(
         config.credentials.url,
-        new ConnectionManager<T>(config)
+        new ConnectionManager<T>(config),
       )
     }
     return this.instances.get(config.credentials.url) as ConnectionManager<T>
@@ -99,7 +99,7 @@ export class ConnectionManager<
    * Execute operations within a connection context
    */
   public async with<T>(
-    operation: (client: ClickHouseClient) => Promise<T>
+    operation: (client: ClickHouseClient) => Promise<T>,
   ): Promise<T> {
     const client = await this.initializeClient()
     try {
@@ -124,8 +124,8 @@ export class ConnectionManager<
    * Close all connections across all connections
    */
   public static async closeAll(): Promise<void> {
-    const closePromises = Array.from(this.instances.values()).map(instance =>
-      instance.close()
+    const closePromises = Array.from(this.instances.values()).map((instance) =>
+      instance.close(),
     )
     await Promise.all(closePromises)
     this.instances.clear()
@@ -138,7 +138,7 @@ export class ConnectionManager<
   public getClient(): ClickHouseClient {
     if (!this.client) {
       throw new Error(
-        'Client not initialized. Please use "with" method to ensure proper connection handling.'
+        'Client not initialized. Please use "with" method to ensure proper connection handling.',
       )
     }
     return this.client
@@ -149,7 +149,7 @@ export class ConnectionManager<
  * Connection manager factory for creating typed connection managers
  */
 export function createConnectionManager<T extends ConnectionCredentials>(
-  config: ConnectionConfig<T>
+  config: ConnectionConfig<T>,
 ): ConnectionManager<T> {
   return ConnectionManager.getInstance<T>(config)
 }

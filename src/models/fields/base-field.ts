@@ -2,7 +2,7 @@ import {
   StringFieldTypes,
   NumberFieldTypes,
   BooleanFieldTypes,
-} from "./field-types"
+} from './field-types'
 
 export interface BaseFieldOptions {
   expression?: string
@@ -12,7 +12,7 @@ export interface BaseFieldOptions {
 export type FieldType = StringFieldTypes | NumberFieldTypes | BooleanFieldTypes
 
 export abstract class Field {
-  protected name: string = ""
+  protected name: string = ''
   protected type?: FieldType
   protected options: BaseFieldOptions = {}
 
@@ -26,7 +26,7 @@ export abstract class Field {
 
   public getName(): string {
     if (!this.name) {
-      throw new Error("Name is required")
+      throw new Error('Name is required')
     }
     return this.name
   }
@@ -42,12 +42,12 @@ export abstract class Field {
   public getMaterializedStatement(): string {
     return this.options.expression
       ? `MATERIALIZED ${this.options.expression}`
-      : ""
+      : ''
   }
 
   public getDefaultValueStatement(): string {
     return this.options.defaultValue
       ? `DEFAULT ${this.options.defaultValue}`
-      : ""
+      : ''
   }
 }

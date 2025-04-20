@@ -25,14 +25,14 @@ import {
   StringField,
   NumberField,
   TableDefinition,
-} from "clickhouse-orm"
+} from 'clickhouse-orm'
 
 // Define your model
 class User extends Model<User> {
   static tableDefinition: TableDefinition<User> = {
-    tableName: "users",
-    engine: "MergeTree",
-    orderBy: ["id"],
+    tableName: 'users',
+    engine: 'MergeTree',
+    orderBy: ['id'],
   }
 
   protected static fields = {
@@ -45,8 +45,8 @@ class User extends Model<User> {
 // Create a new user
 const user = new User().create({
   id: 1,
-  name: "John Doe",
-  email: "john@example.com",
+  name: 'John Doe',
+  email: 'john@example.com',
 })
 
 // Save to database
