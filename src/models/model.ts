@@ -79,19 +79,18 @@ export abstract class Model<
 > {
   protected static fields: FieldsOf<any> = {}
   public static tableDefinition: TableDefinition<any>
+  protected connectionConfig?: ConnectionConfig
 
   public objects: QueryBuilder<T, M>
+  public values: Partial<T> = {}
 
-  constructor(data?: Partial<T>) {
-    if (data) {
-      this.create(data)
-    }
+  constructor(connectionConfig?: ConnectionConfig) {
+    this.connectionConfig = connectionConfig
     const constructor = this.constructor as typeof Model<T, M>
-    this.objects = new QueryBuilder<T, M>(constructor)
+    this.objects = new QueryBuilder<T, M>(constructor, connectionConfig)
   }
 
-  public values: Partial<T> = {}
-  public create(data: Partial<T>) {
+  public create(data: Partial<T>): this {
     const constructor = this.constructor as typeof Model<T, M>
     const processFields = (fields: Record<string, Field>) => {
       Object.keys(fields).forEach(fieldName => {
@@ -117,83 +116,6 @@ export abstract class Model<
     if (!this.tableDefinition) {
       throw new Error("Table definition is required")
     }
-  }
-
-  public static createTableStatement(): string {
-    const schema = this.generateSchema()
-    const tableName = schema.tableName
-    const columns = Object.keys(this.fields).map(fieldName => {
-      const field = this.fields[fieldName]
-      const type = field.getType()
-
-      if (!type) {
-        throw new Error("Type is required")
-      }
-
-      let column = `${fieldName} ${type}`
-
-      if (field.getMaterializedStatement()) {
-        column += " " + field.getMaterializedStatement()
-      }
-
-      if (field.getDefaultValueStatement()) {
-        column += " " + field.getDefaultValueStatement()
-      }
-
-      return column
-    })
-
-    const columnsString = columns.join(", ")
-    const partitionByStatement = schema.partitionBy
-      ? `PARTITION BY ${schema.partitionBy}`
-      : ""
-    const primaryKeyStatement = schema.primaryKey
-      ? `PRIMARY KEY (${schema.primaryKey.join(", ")})`
-      : ""
-    const orderByStatement =
-      schema.orderBy && schema.orderBy.length > 0
-        ? `ORDER BY (${schema.orderBy.join(", ")})`
-        : ""
-
-    return `CREATE TABLE IF NOT EXISTS ${tableName} (${columnsString}) ENGINE = ${schema.engine} ${partitionByStatement} ${primaryKeyStatement} ${orderByStatement}`.trim()
-  }
-
-  public static dropTableStatement(): string {
-    return `DROP TABLE IF EXISTS ${this.tableDefinition.tableName}`
-  }
-
-  public static addColumnStatement(columns: Column[]): string {
-    return `ALTER TABLE ${this.tableDefinition.tableName} ADD COLUMN ${columns
-      .map(
-        c =>
-          `${c.name} ${c.type}${
-            c.expression ? ` MATERIALIZED ${c.expression}` : ""
-          }${c.default ? ` DEFAULT ${c.default}` : ""}`
-      )
-      .join(", ")}`
-  }
-
-  public static dropColumnStatement(columns: string[]): string {
-    return `ALTER TABLE ${
-      this.tableDefinition.tableName
-    } DROP COLUMN ${columns.join(", ")}`
-  }
-
-  public static updateColumnStatement(columns: Column[]): string {
-    return `ALTER TABLE ${
-      this.tableDefinition.tableName
-    } MODIFY COLUMN ${columns
-      .map(
-        c =>
-          `${c.name} ${c.type}${
-            c.expression ? ` MATERIALIZED ${c.expression}` : ""
-          }${c.default ? ` DEFAULT ${c.default}` : ""}`
-      )
-      .join(", ")}`
-  }
-  public static createTable(): void {
-    const tableStatement = this.createTableStatement()
-    this.withConnection(client => client.exec({ query: tableStatement }))
   }
 
   public static generateSchema(): Schema {
@@ -243,6 +165,6 @@ export abstract class Model<
         values: [this.values],
         format: "JSONEachRow",
       })
-    })
+    }, this.connectionConfig)
   }
 }

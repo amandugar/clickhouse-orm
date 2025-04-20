@@ -7,7 +7,7 @@ export type BaseColumn<
   /**
    * Optional expression makes it a materialized column when present
    */
-  matExpression?: string
+  expression?: string
 }
 
 export type NumberColumn<T extends Record<string, unknown>> = BaseColumn<T> & {

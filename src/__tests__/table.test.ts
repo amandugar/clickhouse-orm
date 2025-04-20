@@ -12,7 +12,11 @@ import {
   MergeTreeTableDefinition,
 } from "../models/definitions/table-definition"
 import { Q } from "../models/query-builder"
-import { ConnectionManager } from "../utils/connection-manager"
+import { MigrationRunner } from "../services/MigrationRunner"
+import {
+  ConnectionCredentials,
+  ConnectionManager,
+} from "../utils/connection-manager"
 
 type User = {
   id: number
@@ -48,32 +52,24 @@ class UserModel extends Model<User, UserMaterialized> {
 
 UserModel.init()
 
+const credentials: ConnectionCredentials = {
+  url: "http://localhost:8123",
+  username: "default",
+  database: "test",
+  password: "",
+}
+
 describe("Model", () => {
   beforeAll(async () => {
-    ConnectionManager.setDefault({
-      credentials: {
-        url: "http://localhost:8123",
-        username: "default",
-        database: "default",
-        password: "",
-      },
-    })
-
+    ConnectionManager.setDefault({ credentials })
     ConnectionManager.createDatabase("test")
-
-    ConnectionManager.setDefault({
-      credentials: {
-        url: "http://localhost:8123",
-        username: "default",
-        database: "test",
-      },
-    })
   })
 
   it("should create a table statement", async () => {
-    const table = UserModel.createTableStatement()
+    const table = UserModel.generateSchema()
+    const runner = new MigrationRunner(credentials)
+    await runner.createTable(table)
 
-    UserModel.createTable()
     UserModel.init()
     const user = new UserModel().create({
       email: "test@test.com",
@@ -84,11 +80,13 @@ describe("Model", () => {
 
     await user.save()
 
-    expect(table).toBe(
+    expect(MigrationRunner.createTableStatement(table)).toBe(
       "CREATE TABLE IF NOT EXISTS users (id Int32, name String, email String, isActive Boolean, userName String MATERIALIZED concat(name, ' ', email)) ENGINE = MergeTree PARTITION BY name PRIMARY KEY (id) ORDER BY (id)"
     )
 
     const user2 = new UserModel({
+      credentials,
+    }).create({
       email: "test3@test.com",
       name: "Test2",
       id: 3,
@@ -140,7 +138,23 @@ describe("Model", () => {
 
     const queryRightNow = queryData.getQuery()
     expect(queryRightNow).toBe(
-      "SELECT * FROM users WHERE (NOT (id = 1 OR id = 2))"
+      "SELECT * FROM users WHERE ((NOT (id = 1 OR id = 2)))"
+    )
+
+    const query = new UserModel()
+
+    const queryData2 = query.objects.filter(
+      new Q<User>().or([
+        new Q<User>().and([{ id: 1 }, { name: "John" }]),
+        new Q<User>().not(
+          new Q<User>().or([{ id: 2 }, { email: "test@test.com" }])
+        ),
+      ])
+    )
+
+    const queryRightNow2 = queryData2.getQuery()
+    expect(queryRightNow2).toBe(
+      "SELECT * FROM users WHERE (((id = 1 AND name = 'John') OR (NOT (id = 2 OR email = 'test@test.com'))))"
     )
   })
 })

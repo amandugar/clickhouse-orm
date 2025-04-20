@@ -6,7 +6,8 @@
   "scripts": {
     "test": "jest --forceExit --config jest.config.js",
     "makemigrations": "ts-node src/cli/index.ts",
-    "readmigrations": "ts-node src/cli/index.ts"
+    "readmigrations": "ts-node src/cli/index.ts",
+    "migrate": "ts-node src/cli/index.ts"
   },
   "author": "",
   "license": "ISC",
