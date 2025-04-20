@@ -25,7 +25,7 @@ import {
   StringField,
   NumberField,
   TableDefinition,
-} from 'clickhouse-orm'
+} from '@amandugar/clickhouseorm'
 
 // Define your model
 class User extends Model<User> {
