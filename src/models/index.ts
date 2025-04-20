@@ -10,7 +10,7 @@ import {
 import {
   TableDefinition,
   MergeTreeTableDefinition,
-} from './definitions/table-definition'
+} from './types/table-definition'
 
 export {
   Model,
