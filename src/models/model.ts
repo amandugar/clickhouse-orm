@@ -68,6 +68,11 @@ export type SchemaChanges<
   M extends Record<string, unknown>
 > = SchemaChange<T, M>[]
 
+/**
+ * Here T stands for the normal fields
+ * M stands for the materialized or virtual fields
+ */
+
 export abstract class Model<
   T extends Record<string, unknown>,
   M extends Record<string, unknown> = T
@@ -75,14 +80,14 @@ export abstract class Model<
   protected static fields: FieldsOf<any> = {}
   public static tableDefinition: TableDefinition<any>
 
-  public objects: QueryBuilder<T>
+  public objects: QueryBuilder<T, M>
 
   constructor(data?: Partial<T>) {
     if (data) {
       this.create(data)
     }
     const constructor = this.constructor as typeof Model<T, M>
-    this.objects = new QueryBuilder<T>(constructor)
+    this.objects = new QueryBuilder<T, M>(constructor)
   }
 
   public values: Partial<T> = {}

@@ -11,53 +11,56 @@ import {
   FieldsOf,
   MergeTreeTableDefinition,
 } from "../models/definitions/table-definition"
+import { Q } from "../models/query-builder"
 import { ConnectionManager } from "../utils/connection-manager"
 
+type User = {
+  id: number
+  name: string
+  email: string
+  isActive: boolean
+}
+
+type UserMaterialized = {
+  userName: string
+}
+
+class UserModel extends Model<User, UserMaterialized> {
+  static fields: FieldsOf<User & UserMaterialized> = {
+    id: new NumberField({ type: NumberFieldTypes.Int32 }),
+    name: new StringField({ type: StringFieldTypes.String }),
+    email: new StringField({ type: StringFieldTypes.String }),
+    isActive: new BooleanField({ type: BooleanFieldTypes.Boolean }),
+    userName: new StringField({
+      type: StringFieldTypes.String,
+      expression: "concat(name, ' ', email)",
+    }),
+  }
+
+  static tableDefinition: MergeTreeTableDefinition<User> = {
+    engine: "MergeTree",
+    partitionBy: "name",
+    orderBy: ["id"],
+    tableName: "users",
+    primaryKey: ["id"],
+  }
+}
+
+UserModel.init()
+
 describe("Model", () => {
-  it("should create a table statement", async () => {
-    type User = {
-      id: number
-      name: string
-      email: string
-      isActive: boolean
-    }
-
-    type UserMaterialized = {
-      userName: string
-    }
-
-    class UserModel extends Model<User, UserMaterialized> {
-      static fields: FieldsOf<User & UserMaterialized> = {
-        id: new NumberField({ type: NumberFieldTypes.Int32 }),
-        name: new StringField({ type: StringFieldTypes.String }),
-        email: new StringField({ type: StringFieldTypes.String }),
-        isActive: new BooleanField({ type: BooleanFieldTypes.Boolean }),
-        userName: new StringField({
-          type: StringFieldTypes.String,
-          expression: "concat(name, ' ', email)",
-        }),
-      }
-
-      static tableDefinition: MergeTreeTableDefinition<User> = {
-        engine: "MergeTree",
-        partitionBy: "name",
-        orderBy: ["id"],
-        tableName: "users",
-        primaryKey: ["id"],
-      }
-    }
-
-    UserModel.init()
-
-    const table = UserModel.createTableStatement()
+  beforeAll(async () => {
     ConnectionManager.setDefault({
       credentials: {
         url: "http://localhost:8123",
         username: "default",
         database: "default",
+        password: "",
       },
     })
+
     ConnectionManager.createDatabase("test")
+
     ConnectionManager.setDefault({
       credentials: {
         url: "http://localhost:8123",
@@ -65,6 +68,11 @@ describe("Model", () => {
         database: "test",
       },
     })
+  })
+
+  it("should create a table statement", async () => {
+    const table = UserModel.createTableStatement()
+
     UserModel.createTable()
     UserModel.init()
     const user = new UserModel().create({
@@ -99,5 +107,40 @@ describe("Model", () => {
     for await (const row of query2) {
       expect(row.id).not.toBe(3)
     }
+  })
+
+  it("should create a query builder", async () => {
+    const user1 = new UserModel()
+
+    const queryData = user1.objects
+
+    const queryData2 = queryData.filter(
+      new Q<User>().or([
+        { id: 1 },
+        { id: 2 },
+        new Q<User>().and([{ id: 3 }, { email: "test@test.com" }]),
+      ])
+    )
+    /**
+     * QUery should be:
+     * SELECT * FROM users WHERE (id = 1 OR id = 2)
+     */
+    const queryRightNow = queryData2.getQuery()
+    expect(queryRightNow).toBe(
+      "SELECT * FROM users WHERE ((id = 1 OR id = 2 OR (id = 3 AND email = 'test@test.com')))"
+    )
+  })
+
+  it("should create a query builder with not", async () => {
+    const user1 = new UserModel()
+
+    const queryData = user1.objects.filter(
+      new Q<User>().not(new Q<User>().or([{ id: 1 }, { id: 2 }]))
+    )
+
+    const queryRightNow = queryData.getQuery()
+    expect(queryRightNow).toBe(
+      "SELECT * FROM users WHERE (NOT (id = 1 OR id = 2))"
+    )
   })
 })
