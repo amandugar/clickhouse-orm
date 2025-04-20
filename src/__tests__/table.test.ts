@@ -16,7 +16,7 @@ import { MigrationRunner } from '../services/MigrationRunner'
 import {
   ConnectionCredentials,
   ConnectionManager,
-} from '../utils/connection-manager'
+} from '../utils/database/connection-manager'
 
 type User = {
   id: number

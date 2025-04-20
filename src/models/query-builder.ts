@@ -1,6 +1,6 @@
 import { DataRetrival } from './data-retrival'
 import { Model } from './model'
-import { ConnectionConfig } from '../utils/connection-manager'
+import { ConnectionConfig } from '../utils/database/connection-manager'
 
 type Condition = {
   field: string

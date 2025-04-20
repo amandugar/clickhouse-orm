@@ -2,7 +2,7 @@ import { MigrationService } from '../services/MigrationService'
 import {
   ConnectionCredentials,
   ConnectionManager,
-} from '../utils/connection-manager'
+} from '../utils/database/connection-manager'
 
 // Get the model path from command line arguments
 const modelPath = process.argv[2]
