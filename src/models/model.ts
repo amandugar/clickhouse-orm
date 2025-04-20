@@ -5,7 +5,7 @@ import {
   ConnectionCredentials,
   ConnectionConfig,
 } from "../utils/connection-manager"
-import { ClickHouseClient, Row } from "@clickhouse/client"
+import { ClickHouseClient } from "@clickhouse/client"
 import { QueryBuilder } from "./query-builder"
 
 /**

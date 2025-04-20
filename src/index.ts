@@ -1,25 +1,23 @@
-import { Model } from "./models/model"
-import { QueryBuilder } from "./models/query-builder"
-import {
-  ConnectionManager,
-  ConnectionCredentials,
-  ConnectionConfig,
-} from "./utils/connection-manager"
-import { MigrationService } from "./services/MigrationService"
-import { MigrationRunner } from "./services/MigrationRunner"
+// Core exports
+export { Model } from "./models/model"
+export { QueryBuilder } from "./models/query-builder"
+export { ConnectionManager } from "./utils/connection-manager"
+export { MigrationService } from "./services/MigrationService"
+export { MigrationRunner } from "./services/MigrationRunner"
 
-export {
-  Model,
-  QueryBuilder,
-  ConnectionManager,
-  ConnectionCredentials,
-  ConnectionConfig,
-  MigrationService,
-  MigrationRunner,
-}
+// Type exports
+export * from "./types"
 
-// Export types
+// Field exports
 export * from "./models/fields/base-field"
+export * from "./models/fields/string-field"
+export * from "./models/fields/number-field"
+export * from "./models/fields/boolean-field"
+
+// Definition exports
 export * from "./models/definitions/table-definition"
-export * from "./models/model"
-export * from "./@types"
+
+// Utility exports
+export * from "./utils/query-utils"
+export * from "./utils/type-utils"
+export * from "./utils/validation-utils"
