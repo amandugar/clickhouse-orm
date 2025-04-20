@@ -1,17 +1,20 @@
 // Connection types
 export interface ConnectionCredentials {
-  host: string
-  port: number
-  user: string
-  password: string
-  database: string
+  url: string
+  username?: string
+  password?: string
+  database?: string
+  options?: {
+    keepAlive?: boolean
+  }
 }
 
-export interface ConnectionConfig {
-  credentials: ConnectionCredentials
+export interface ConnectionConfig<
+  TCredentials extends ConnectionCredentials = ConnectionCredentials
+> {
+  credentials: TCredentials
   options?: {
-    debug?: boolean
-    ssl?: boolean
+    keepAlive?: boolean
   }
 }
 

@@ -1,27 +1,6 @@
 import { ClickHouseClient, createClient } from "@clickhouse/client"
+import { ConnectionConfig, ConnectionCredentials } from "../types"
 
-/**
- * Interface for connection credentials
- */
-export interface ConnectionCredentials {
-  url: string
-  username?: string
-  password?: string
-  database?: string
-}
-
-export interface ConnectionConfig<
-  TCredentials extends ConnectionCredentials = ConnectionCredentials
-> {
-  credentials: TCredentials
-  options?: {
-    keepAlive?: boolean
-  }
-}
-
-/**
- * Generic connection manager that supports multi-tenancy
- */
 export class ConnectionManager<
   TCredentials extends ConnectionCredentials = ConnectionCredentials
 > {
