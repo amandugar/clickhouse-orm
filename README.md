@@ -24,8 +24,9 @@ yarn add thunder-schema
 ### 1. Define Your Models
 
 ```typescript
-import { Model, NumberField, StringField } from 'thunder-schema'
+import { Model } from 'thunder-schema'
 import { FieldsOf, TableDefinition } from 'thunder-schema'
+import { NumberField, StringField } from 'thunder-schema'
 
 type UserSchema = {
   id: number
@@ -60,21 +61,30 @@ class User extends Model<UserSchema> {
 import { ConnectionManager, ConnectionConfig } from 'thunder-schema'
 
 const config: ConnectionConfig = {
-  host: 'localhost',
-  port: 9000,
-  user: 'default',
-  password: '',
-  database: 'default'
+  credentials: {
+    url: 'http://localhost:8123',
+    username: 'default',
+    password: '',
+    database: 'default'
+  },
+  options: {
+    keepAlive: true
+  }
 }
 
-const connectionManager = new ConnectionManager(config)
+// Set as default connection
+ConnectionManager.setDefault(config)
+
+// Or get a specific instance
+const connectionManager = ConnectionManager.getInstance(config)
 ```
 
 ### 3. Using the Model
 
 ```typescript
 // Create a new user
-const user = await User.create({
+const user = new User().create({
+  id: 1,
   name: 'John Doe',
   email: 'john@example.com',
   createdAt: Date.now(),
@@ -82,8 +92,105 @@ const user = await User.create({
   deletedAt: 0
 })
 
-
 await user.save()
+```
+
+## Connection Management
+
+The `ConnectionManager` is a singleton class that manages ClickHouse database connections. It provides several key features:
+
+1. **Multi-tenancy Support**: You can have multiple connection instances for different databases/hosts
+2. **Default Connection**: You can set a default connection configuration
+3. **Connection Pooling**: It maintains connections and reuses them efficiently
+4. **Type Safety**: It's fully typed with TypeScript
+
+### Using Connection Manager with Models
+
+You can pass connection configuration to models through the constructor:
+
+```typescript
+// Usage with specific connection
+const user = new User(config)
+const users = await user.objects.all()
+
+// Usage with default connection
+const defaultUser = new User()
+const defaultUsers = await defaultUser.objects.all()
+```
+
+### Advanced Connection Management
+
+The `ConnectionManager` provides several useful methods:
+
+```typescript
+// Create a new database
+ConnectionManager.createDatabase('my_database')
+
+// Execute operations within a connection context
+await connectionManager.with(async (client) => {
+  await client.query({ query: 'SELECT 1' })
+})
+
+// Close a specific connection
+await connectionManager.close()
+
+// Close all connections
+await ConnectionManager.closeAll()
+```
+
+### Best Practices
+
+1. **Default Connection**: Set up a default connection for your application:
+```typescript
+// In your application initialization
+ConnectionManager.setDefault({
+  credentials: {
+    url: process.env.CLICKHOUSE_URL,
+    username: process.env.CLICKHOUSE_USERNAME,
+    password: process.env.CLICKHOUSE_PASSWORD,
+    database: process.env.CLICKHOUSE_DATABASE
+  }
+})
+```
+
+2. **Multi-tenant Applications**: For multi-tenant applications, use different connection instances:
+```typescript
+// For tenant-specific operations
+const tenantConfig: ConnectionConfig = {
+  credentials: {
+    url: tenant.url,
+    username: tenant.username,
+    password: tenant.password,
+    database: tenant.database
+  }
+}
+
+const tenantUser = new User(tenantConfig)
+const tenantUsers = await tenantUser.objects.all()
+```
+
+3. **Connection Cleanup**: Always close connections when they're no longer needed:
+```typescript
+try {
+  // Use the connection
+} finally {
+  await connectionManager.close()
+}
+```
+
+### Error Handling
+
+The `ConnectionManager` includes built-in error handling:
+
+```typescript
+try {
+  await connectionManager.with(async (client) => {
+    // Your database operations
+  })
+} catch (error) {
+  // Handle connection or query errors
+  console.error('Database error:', error)
+}
 ```
 
 ## Advanced Usage
@@ -197,6 +304,7 @@ You can update model instances in-place before saving them to the database:
 ```typescript
 // Create a new user
 const user = new User().create({
+  id: 1,
   name: 'John Doe',
   email: 'john@example.com',
   createdAt: Date.now(),
@@ -233,12 +341,11 @@ type UserMaterialized = {
 
 class User extends Model<User, UserMaterialized> {
   static fields: FieldsOf<User & UserMaterialized> = {
-    id: new NumberField({ type: NumberFieldTypes.Int32 }),
-    name: new StringField({ type: StringFieldTypes.String }),
-    email: new StringField({ type: StringFieldTypes.String }),
+    id: new NumberField({}),
+    name: new StringField({}),
+    email: new StringField({}),
     // Materialized field that concatenates name and email
     userName: new StringField({
-      type: StringFieldTypes.String,
       expression: "concat(name, ' ', email)"
     })
   }
@@ -252,6 +359,7 @@ class User extends Model<User, UserMaterialized> {
 
 // When you create a user, the userName field is automatically computed
 const user = new User().create({
+  id: 1,
   name: 'John Doe',
   email: 'john@example.com'
 })
@@ -275,7 +383,6 @@ class User extends Model<User> {
     email: new StringField({ type: StringFieldTypes.String }),
     // Field with default value
     isActive: new BooleanField({ 
-      type: BooleanFieldTypes.Boolean,
       defaultValue: true 
     }),
     // Field with default timestamp
@@ -294,6 +401,7 @@ class User extends Model<User> {
 
 // When creating a user without specifying isActive or createdAt
 const user = new User().create({
+  id: 1,
   name: 'John Doe',
   email: 'john@example.com'
 })
@@ -303,11 +411,11 @@ console.log(user.values.isActive) // true
 console.log(user.values.createdAt) // current timestamp
 ```
 
-### Database Migrations
+## Database Migrations
 
 Thunder Schema provides a robust migration system to manage your database schema changes. The migration system helps you version control your database schema and apply changes in a controlled manner.
 
-#### Creating Migrations
+### Creating Migrations
 
 To create migrations, first define your models and then run:
 
@@ -388,7 +496,7 @@ This command will:
 - Generate a new migration file in the `migrations` directory
 - Create the necessary SQL statements to update your database schema
 
-#### Applying Migrations
+### Applying Migrations
 
 Before applying migrations, ensure your database connection is properly configured through environment variables:
 
@@ -410,7 +518,7 @@ This will:
 - Apply any pending migrations in order
 - Record the applied migrations in the database
 
-#### Migration Types
+### Migration Types
 
 The migration system supports several types of schema changes:
 
@@ -421,7 +529,7 @@ The migration system supports several types of schema changes:
    - Updating column definitions
 3. **DROP**: Dropping tables
 
-#### Migration Diff Examples
+### Migration Diff Examples
 
 Migration diffs are generated automatically when you run `makemigrations`. Here are examples of what different types of diffs look like:
 
@@ -534,7 +642,7 @@ export const diff = [
 
 The migration system automatically generates these diffs based on the changes in your model definitions. Each diff is stored in a separate migration file with a timestamp prefix (e.g., `1678901234567-migration.ts`).
 
-#### Example Migration Workflow
+### Example Migration Workflow
 
 1. Define your initial models
 2. Generate the first migration:
@@ -546,7 +654,6 @@ npm run makemigrations -- src/models.ts
 ```bash
 npm run migrate
 ```
-
 4. When you need to make changes to your schema:
    - Update your model definitions
    - Generate a new migration:
@@ -558,7 +665,7 @@ npm run makemigrations -- src/models.ts
 npm run migrate
 ```
 
-#### Viewing Migrations
+### Viewing Migrations
 
 You can view your existing migrations using:
 
@@ -566,7 +673,7 @@ You can view your existing migrations using:
 npm run readmigrations
 ```
 
-#### Migration Features
+### Migration Features
 
 The migration system supports:
 
@@ -605,6 +712,258 @@ class User extends Model<UserSchema> {
 
 The migration system automatically tracks which migrations have been applied using a `migrations` table in your database and ensures migrations are applied in the correct order.
 
+## Advanced Query Building
+
+### Projection and Field Selection
+
+You can select specific fields using the `project()` method:
+
+```typescript
+// Select specific fields
+const users = await User.objects
+  .project(['id', 'name', 'email'])
+  .all()
+
+// Rename fields in the result
+const users = await User.objects
+  .project([
+    'id',
+    { name: 'fullName' },
+    { email: 'contactEmail' }
+  ])
+  .all()
+```
+
+### Excluding Records
+
+The `exclude()` method allows you to filter out records that match certain conditions:
+
+```typescript
+// Exclude specific records
+const activeUsers = await User.objects
+  .exclude({ isActive: false })
+  .all()
+
+// Complex exclusion conditions
+const validUsers = await User.objects
+  .exclude(
+    new Q<User>().or([
+      { email: null },
+      { name: '' }
+    ])
+  )
+  .all()
+```
+
+### Query Inspection and Debugging
+
+You can inspect the generated SQL query:
+
+```typescript
+const query = User.objects
+  .filter({ isActive: true })
+  .project(['id', 'name'])
+  .getQuery()
+
+console.log(query) // SELECT id, name FROM users WHERE (isActive = true)
+```
+
+### Resetting Queries
+
+The `reset()` method clears all query conditions:
+
+```typescript
+const query = User.objects
+  .filter({ isActive: true })
+  .project(['id', 'name'])
+
+// Clear all conditions
+query.reset()
+
+// Now query is back to SELECT * FROM users
+```
+
+## Field Types and Options
+
+### Available Field Types
+
+1. **NumberField**: For numeric values
+   ```typescript
+   new NumberField({
+     defaultValue: 0,
+     nullable: false
+   })
+   ```
+
+2. **StringField**: For text values
+   ```typescript
+   new StringField({
+     defaultValue: '',
+     nullable: true,
+     maxLength: 255
+   })
+   ```
+
+3. **BooleanField**: For true/false values
+   ```typescript
+   new BooleanField({
+     defaultValue: false
+   })
+   ```
+
+4. **DateTimeField**: For date and time values
+   ```typescript
+   new DateTimeField({
+     defaultValue: 'now()',
+     timezone: 'UTC'
+   })
+   ```
+
+5. **ArrayField**: For array values
+   ```typescript
+   new ArrayField({
+     elementType: 'String',
+     defaultValue: []
+   })
+   ```
+
+### Field Options
+
+All field types support the following options:
+
+- `defaultValue`: Default value for the field
+- `nullable`: Whether the field can be null
+- `expression`: SQL expression for computed fields
+- `materialized`: Whether the field is materialized
+
+## Advanced Connection Management
+
+### Connection Pooling
+
+The `ConnectionManager` implements connection pooling for better performance:
+
+```typescript
+const config: ConnectionConfig = {
+  credentials: {
+    url: 'http://localhost:8123',
+    username: 'default',
+    password: '',
+    database: 'default'
+  },
+  options: {
+    keepAlive: true,
+  }
+}
+```
+
+## Query Operators
+
+The query builder supports various operators for building complex queries. Here's how to use them:
+
+### Comparison Operators
+
+```typescript
+// Greater than
+{ age__gt: 18 } // age > 18
+
+// Less than
+{ age__lt: 65 } // age < 65
+
+// Greater than or equal
+{ age__gte: 18 } // age >= 18
+
+// Less than or equal
+{ age__lte: 65 } // age <= 65
+
+// Not equal
+{ status__ne: 'inactive' } // status != 'inactive'
+```
+
+### String Operators
+
+```typescript
+// Case-insensitive contains
+{ name__icontains: 'john' } // name LIKE '%john%'
+```
+
+### Set Operators
+
+```typescript
+// In set
+{ status__in: ['active', 'pending'] } // status IN ('active', 'pending')
+```
+
+### Logical Operators
+
+```typescript
+// AND operator
+new Q().and([
+  { age__gt: 18 },
+  { status: 'active' }
+])
+// (age > 18 AND status = 'active')
+
+// OR operator
+new Q().or([
+  { status: 'active' },
+  { status: 'pending' }
+])
+// (status = 'active' OR status = 'pending')
+
+// NOT operator
+new Q().not({ status: 'inactive' })
+// NOT (status = 'inactive')
+```
+
+### Complex Queries
+
+You can combine operators to create complex queries:
+
+```typescript
+// Nested conditions with AND and OR
+new Q().and([
+  { age__gt: 18 },
+  new Q().or([
+    { status: 'active' },
+    { status: 'pending' }
+  ])
+])
+// (age > 18 AND (status = 'active' OR status = 'pending'))
+
+// Multiple conditions with NOT
+new Q().not({
+  age__gt: 18,
+  status__in: ['active', 'pending']
+})
+// NOT (age > 18 AND status IN ('active', 'pending'))
+
+// Complex string matching
+new Q().and([
+  { name__icontains: 'john' },
+  { email__icontains: 'example.com' }
+])
+// (name LIKE '%john%' AND email LIKE '%example.com%')
+```
+
+### Edge Cases
+
+```typescript
+// Empty conditions
+new Q().not({}) // No conditions
+
+// Null values
+new Q().not({ name: undefined }) // NOT (name = NULL)
+
+// Boolean values
+new Q().not({ isActive: true }) // NOT (isActive = true)
+
+// Multiple NOT operations
+new Q().not(new Q().not({ id: 1 })) // NOT (NOT (id = 1))
+
+// Empty arrays in IN operator
+new Q().not({ id__in: [] }) // NOT (id IN ())
+```
+
 ## API Reference
 
 ### Models
@@ -623,6 +982,7 @@ The migration system automatically tracks which migrations have been applied usi
 ### Query Building
 
 - `QueryBuilder`: Build complex SQL queries
+- `Q`: Class for building query conditions
 
 ### Migrations
 

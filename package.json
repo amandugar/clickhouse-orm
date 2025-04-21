@@ -1,6 +1,6 @@
 {
   "name": "thunder-schema",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "A TypeScript ORM for ClickHouse with migrations support",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -44,6 +44,7 @@
   "homepage": "https://github.com/amandugar/clickhouse-orm#readme",
   "dependencies": {
     "@clickhouse/client": "^1.11.1",
+    "crypto": "^1.0.1",
     "lodash": "^4.17.21"
   },
   "devDependencies": {

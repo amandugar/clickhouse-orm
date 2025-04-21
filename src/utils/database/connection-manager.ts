@@ -1,4 +1,5 @@
 import { ClickHouseClient, createClient } from '@clickhouse/client'
+import crypto from 'crypto'
 
 /**
  * Interface for connection credentials
@@ -65,13 +66,15 @@ export class ConnectionManager<
   public static getInstance<T extends ConnectionCredentials>(
     config: ConnectionConfig<T>,
   ): ConnectionManager<T> {
-    if (!this.instances.has(config.credentials.url)) {
-      this.instances.set(
-        config.credentials.url,
-        new ConnectionManager<T>(config),
-      )
+    const hash = crypto
+      .createHash('sha256')
+      .update(JSON.stringify(config.credentials))
+      .digest('hex')
+
+    if (!this.instances.has(hash)) {
+      this.instances.set(hash, new ConnectionManager<T>(config))
     }
-    return this.instances.get(config.credentials.url) as ConnectionManager<T>
+    return this.instances.get(hash) as ConnectionManager<T>
   }
 
   /**
@@ -108,6 +111,15 @@ export class ConnectionManager<
       // Re-throw the error but you might want to add logging or error transformation here
       throw error
     }
+  }
+
+  public static getDefaultOrCreate(
+    config?: ConnectionConfig<ConnectionCredentials>,
+  ): ConnectionManager {
+    if (config) {
+      return this.getInstance(config)
+    }
+    return this.getDefault()
   }
 
   /**
