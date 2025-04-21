@@ -84,6 +84,7 @@ const connectionManager = ConnectionManager.getInstance(config)
 ```typescript
 // Create a new user
 const user = new User().create({
+  id: 1,
   name: 'John Doe',
   email: 'john@example.com',
   createdAt: Date.now(),
@@ -303,6 +304,7 @@ You can update model instances in-place before saving them to the database:
 ```typescript
 // Create a new user
 const user = new User().create({
+  id: 1,
   name: 'John Doe',
   email: 'john@example.com',
   createdAt: Date.now(),
@@ -357,6 +359,7 @@ class User extends Model<User, UserMaterialized> {
 
 // When you create a user, the userName field is automatically computed
 const user = new User().create({
+  id: 1,
   name: 'John Doe',
   email: 'john@example.com'
 })
@@ -398,6 +401,7 @@ class User extends Model<User> {
 
 // When creating a user without specifying isActive or createdAt
 const user = new User().create({
+  id: 1,
   name: 'John Doe',
   email: 'john@example.com'
 })
