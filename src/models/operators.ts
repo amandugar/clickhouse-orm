@@ -12,7 +12,17 @@
  *
  * These operators are used for comparing field values.
  */
-export const ComparisonOperators = {
+
+export enum ArithmeticOperators {
+  EQ = '=',
+  NE = '!=',
+  GT = '>',
+  LT = '<',
+  GTE = '>=',
+  LTE = '<=',
+}
+
+export enum ComparisonOperators {
   /**
    * Greater than
    * @example
@@ -20,7 +30,7 @@ export const ComparisonOperators = {
    * { age__gt: 18 } // age > 18
    * ```
    */
-  GT: '__gt',
+  GT = '__gt',
 
   /**
    * Less than
@@ -29,7 +39,7 @@ export const ComparisonOperators = {
    * { age__lt: 65 } // age < 65
    * ```
    */
-  LT: '__lt',
+  LT = '__lt',
 
   /**
    * Greater than or equal
@@ -38,7 +48,7 @@ export const ComparisonOperators = {
    * { age__gte: 18 } // age >= 18
    * ```
    */
-  GTE: '__gte',
+  GTE = '__gte',
 
   /**
    * Less than or equal
@@ -47,7 +57,7 @@ export const ComparisonOperators = {
    * { age__lte: 65 } // age <= 65
    * ```
    */
-  LTE: '__lte',
+  LTE = '__lte',
 
   /**
    * Not equal
@@ -56,15 +66,15 @@ export const ComparisonOperators = {
    * { status__ne: 'inactive' } // status != 'inactive'
    * ```
    */
-  NE: '__ne',
-} as const
+  NE = '__ne',
+}
 
 /**
  * String Operators
  *
  * These operators are used for string pattern matching.
  */
-export const StringOperators = {
+export enum StringOperators {
   /**
    * Case-insensitive contains
    * @example
@@ -72,15 +82,15 @@ export const StringOperators = {
    * { name__icontains: 'john' } // name LIKE '%john%'
    * ```
    */
-  ICONTAINS: '__icontains',
-} as const
+  ICONTAINS = '__icontains',
+}
 
 /**
  * Set Operators
  *
  * These operators are used for checking if a value is in a set.
  */
-export const SetOperators = {
+export enum SetOperators {
   /**
    * In set
    * @example
@@ -88,15 +98,15 @@ export const SetOperators = {
    * { status__in: ['active', 'pending'] } // status IN ('active', 'pending')
    * ```
    */
-  IN: '__in',
-} as const
+  IN = '__in',
+}
 
 /**
  * Logical Operators
  *
  * These operators are used for combining conditions.
  */
-export const LogicalOperators = {
+export enum LogicalOperators {
   /**
    * AND operator
    * @example
@@ -105,7 +115,7 @@ export const LogicalOperators = {
    * // (age > 18 AND status = 'active')
    * ```
    */
-  AND: 'AND',
+  AND = 'AND',
 
   /**
    * OR operator
@@ -115,7 +125,7 @@ export const LogicalOperators = {
    * // (status = 'active' OR status = 'pending')
    * ```
    */
-  OR: 'OR',
+  OR = 'OR',
 
   /**
    * NOT operator
@@ -125,22 +135,21 @@ export const LogicalOperators = {
    * // NOT (status = 'inactive')
    * ```
    */
-  NOT: 'NOT',
-} as const
+  NOT = 'NOT',
+}
 
 /**
  * All available operator suffixes
  */
 export type OperatorSuffix =
-  | (typeof ComparisonOperators)[keyof typeof ComparisonOperators]
-  | (typeof StringOperators)[keyof typeof StringOperators]
-  | (typeof SetOperators)[keyof typeof SetOperators]
-
+  | ComparisonOperators
+  | StringOperators
+  | SetOperators
+  | ArithmeticOperators
 /**
  * All available logical operators
  */
-export type LogicalOperator =
-  (typeof LogicalOperators)[keyof typeof LogicalOperators]
+export type LogicalOperator = LogicalOperators
 
 /**
  * Examples of complex queries using operators:

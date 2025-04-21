@@ -8,29 +8,24 @@ import {
   SetOperators,
   OperatorSuffix,
   LogicalOperator,
+  ArithmeticOperators,
 } from './operators'
 
 type Operator =
-  | '='
-  | '!='
-  | '>'
-  | '<'
-  | '>='
-  | '<='
-  | 'LIKE'
-  | 'IN'
-  | 'AND'
-  | 'OR'
-  | 'NOT'
+  | ComparisonOperators
+  | LogicalOperators
+  | StringOperators
+  | SetOperators
+  | ArithmeticOperators
 
 type Condition = {
   field: string
   operator: Operator
   value: any
-  logicalOperator: 'AND' | 'OR' | 'NOT'
+  logicalOperator: LogicalOperator
   groupId?: number
   isNested?: boolean
-  parentOperator?: 'AND' | 'OR' | 'NOT'
+  parentOperator?: LogicalOperator
 }
 
 type WithOperators<T> = {
@@ -41,36 +36,72 @@ type WithOperators<T> = {
   [K in keyof T as K extends string ? `${K}__in` : never]: T[K][]
 }
 
-function parseCondition(
-  field: string,
-  value: any,
-  logicalOperator: 'AND' | 'OR' | 'NOT' = 'AND',
-): Condition {
-  const [key, lookup] = field.split('__')
+const OPERATOR_MAP = {
+  [ComparisonOperators.GT]: '>',
+  [ComparisonOperators.LT]: '<',
+  [ComparisonOperators.GTE]: '>=',
+  [ComparisonOperators.LTE]: '<=',
+  [ComparisonOperators.NE]: '!=',
+  [StringOperators.ICONTAINS]: 'LIKE',
+  [SetOperators.IN]: 'IN',
+} as const
 
-  const operatorMap: Record<string, Operator> = {
-    gte: '>=',
-    lte: '<=',
-    gt: '>',
-    lt: '<',
-    icontains: 'LIKE',
-    in: 'IN',
-    ne: '!=',
-  }
-
-  const op: Operator = lookup ? operatorMap[lookup] || '=' : '='
-
-  return {
-    field: key,
-    operator: op,
-    value: op === 'LIKE' ? `%${value}%` : value,
-    logicalOperator,
-  }
-}
+const LOOKUP_OPERATOR_MAP = {
+  gt: '>',
+  lt: '<',
+  gte: '>=',
+  lte: '<=',
+  ne: '!=',
+  icontains: 'LIKE',
+  in: 'IN',
+} as const
 
 export class Q<T extends Record<string, unknown>> {
   public whereConditions: Condition[] = []
   private groupCounter: number = 0
+
+  protected parseFieldAndOperator(field: string): {
+    key: string
+    operator: string
+  } {
+    const [key, lookup] = field.split('__')
+    const operator = lookup ? LOOKUP_OPERATOR_MAP[lookup] || '=' : '='
+    return { key, operator }
+  }
+
+  private parseConditionField(field: string, value: any): Condition {
+    const { key, operator } = this.parseFieldAndOperator(field)
+    const processedValue = operator === 'LIKE' ? `%${value}%` : value
+
+    return {
+      field: key,
+      value: processedValue,
+      operator: operator as Operator,
+      logicalOperator: LogicalOperators.AND,
+      groupId: this.groupCounter,
+    }
+  }
+
+  private addNestedConditions(
+    entries: [string, any][],
+    logicalOperator: LogicalOperator,
+    groupId: number,
+  ) {
+    if (entries.length === 0) return
+
+    const nestedConditions = entries.map(([field, value]) =>
+      this.parseConditionField(field, value),
+    )
+
+    this.whereConditions.push({
+      field: '',
+      value: nestedConditions,
+      operator: LogicalOperators.AND,
+      isNested: true,
+      logicalOperator,
+      groupId,
+    })
+  }
 
   private addCondition(
     condition: Q<T> | WithOperators<Partial<T>>,
@@ -82,47 +113,36 @@ export class Q<T extends Record<string, unknown>> {
         field: '',
         value: condition.whereConditions,
         operator:
-          condition.whereConditions[0].logicalOperator || LogicalOperators.AND,
+          condition.whereConditions[0]?.logicalOperator || LogicalOperators.AND,
         isNested: true,
         logicalOperator,
         groupId,
       })
     } else {
-      const conditionEntries = Object.entries(condition)
-      if (conditionEntries.length > 0) {
-        const nestedConditions = conditionEntries.map(([field, value]) => {
-          const [key, lookup] = field.split('__')
-          const operator = lookup
-            ? {
-                [ComparisonOperators.GT]: '>',
-                [ComparisonOperators.LT]: '<',
-                [ComparisonOperators.GTE]: '>=',
-                [ComparisonOperators.LTE]: '<=',
-                [ComparisonOperators.NE]: '!=',
-                [StringOperators.ICONTAINS]: 'LIKE',
-                [SetOperators.IN]: 'IN',
-              }[lookup as OperatorSuffix] || '='
-            : '='
-
-          return {
-            field: key,
-            value: operator === 'LIKE' ? `%${value}%` : value,
-            operator: operator as Operator,
-            logicalOperator: LogicalOperators.AND,
-            groupId,
-          }
-        })
-
-        this.whereConditions.push({
-          field: '',
-          value: nestedConditions,
-          operator: LogicalOperators.AND,
-          isNested: true,
-          logicalOperator,
-          groupId,
-        })
-      }
+      this.addNestedConditions(
+        Object.entries(condition),
+        logicalOperator,
+        groupId,
+      )
     }
+  }
+
+  private handleConditions(
+    conditions:
+      | Q<T>
+      | WithOperators<Partial<T>>
+      | Array<Q<T> | WithOperators<Partial<T>>>,
+    logicalOperator: LogicalOperator,
+  ) {
+    const groupId = ++this.groupCounter
+    if (Array.isArray(conditions)) {
+      conditions.forEach((condition) =>
+        this.addCondition(condition, logicalOperator, groupId),
+      )
+    } else {
+      this.addCondition(conditions, logicalOperator, groupId)
+    }
+    return this
   }
 
   public and(
@@ -131,15 +151,7 @@ export class Q<T extends Record<string, unknown>> {
       | WithOperators<Partial<T>>
       | Array<Q<T> | WithOperators<Partial<T>>>,
   ) {
-    const groupId = ++this.groupCounter
-    if (Array.isArray(conditions)) {
-      conditions.forEach((condition) =>
-        this.addCondition(condition, LogicalOperators.AND, groupId),
-      )
-    } else {
-      this.addCondition(conditions, LogicalOperators.AND, groupId)
-    }
-    return this
+    return this.handleConditions(conditions, LogicalOperators.AND)
   }
 
   public or(
@@ -148,15 +160,7 @@ export class Q<T extends Record<string, unknown>> {
       | WithOperators<Partial<T>>
       | Array<Q<T> | WithOperators<Partial<T>>>,
   ) {
-    const groupId = ++this.groupCounter
-    if (Array.isArray(conditions)) {
-      conditions.forEach((condition) =>
-        this.addCondition(condition, LogicalOperators.OR, groupId),
-      )
-    } else {
-      this.addCondition(conditions, LogicalOperators.OR, groupId)
-    }
-    return this
+    return this.handleConditions(conditions, LogicalOperators.OR)
   }
 
   public not(conditions: Q<T> | WithOperators<Partial<T>>) {
@@ -166,48 +170,46 @@ export class Q<T extends Record<string, unknown>> {
         field: '',
         value: conditions.whereConditions,
         operator:
-          conditions.whereConditions[0].logicalOperator || LogicalOperators.AND,
+          conditions.whereConditions[0]?.logicalOperator ||
+          LogicalOperators.AND,
         isNested: true,
         logicalOperator: LogicalOperators.NOT,
         groupId,
       })
     } else {
-      const conditionEntries = Object.entries(conditions)
-      if (conditionEntries.length > 0) {
-        const nestedConditions = conditionEntries.map(([field, value]) => {
-          const [key, lookup] = field.split('__')
-          const operator = lookup
-            ? {
-                [ComparisonOperators.GT]: '>',
-                [ComparisonOperators.LT]: '<',
-                [ComparisonOperators.GTE]: '>=',
-                [ComparisonOperators.LTE]: '<=',
-                [ComparisonOperators.NE]: '!=',
-                [StringOperators.ICONTAINS]: 'LIKE',
-                [SetOperators.IN]: 'IN',
-              }[lookup as OperatorSuffix] || '='
-            : '='
-
-          return {
-            field: key,
-            value: operator === 'LIKE' ? `%${value}%` : value,
-            operator: operator as Operator,
-            logicalOperator: LogicalOperators.AND,
-            groupId,
-          }
-        })
-
-        this.whereConditions.push({
-          field: '',
-          value: nestedConditions,
-          operator: LogicalOperators.AND,
-          isNested: true,
-          logicalOperator: LogicalOperators.NOT,
-          groupId,
-        })
-      }
+      this.addNestedConditions(
+        Object.entries(conditions),
+        LogicalOperators.NOT,
+        groupId,
+      )
     }
     return this
+  }
+
+  protected buildBaseCondition(condition: Condition): string {
+    if (condition.operator === SetOperators.IN) {
+      const values = Array.isArray(condition.value)
+        ? condition.value.length === 0
+          ? '()'
+          : `('${condition.value.join("', '")}')`
+        : condition.value
+      return `${condition.field} IN ${values}`
+    }
+
+    if (condition.value === null || condition.value === undefined) {
+      return `${condition.field} IS NULL`
+    }
+
+    return `${condition.field} ${condition.operator} ${this.formatValue(condition.value)}`
+  }
+
+  protected formatValue(value: any): string {
+    if (value === undefined || value === null) return 'NULL'
+    if (typeof value === 'string') return `'${value}'`
+    if (Array.isArray(value)) {
+      return value.length === 0 ? '()' : `('${value.join("', '")}')`
+    }
+    return String(value)
   }
 }
 
@@ -262,9 +264,7 @@ export class QueryBuilder<
     projects: Array<keyof (T & M) | Record<keyof (T & M), string>>,
   ): QueryBuilder<T, M> {
     const statements = projects.map((field) => {
-      if (typeof field === 'string') {
-        return field
-      }
+      if (typeof field === 'string') return field
       const [k, v] = Object.entries(field)[0]
       return `${k} as ${v}`
     })
@@ -280,6 +280,15 @@ export class QueryBuilder<
     return this.clone({ limit })
   }
 
+  protected parseFieldAndOperator(field: string): {
+    key: string
+    operator: string
+  } {
+    const [key, lookup] = field.split('__')
+    const operator = lookup ? LOOKUP_OPERATOR_MAP[lookup] || '=' : '='
+    return { key, operator }
+  }
+
   public filter(
     conditions: WithOperators<Partial<T>> | Q<T>,
   ): QueryBuilder<T, M> {
@@ -292,27 +301,9 @@ export class QueryBuilder<
       })
     }
 
-    const newConditions = Object.entries(conditions).map(([field, value]) => {
-      const [key, lookup] = field.split('__')
-      const operator = lookup
-        ? {
-            gt: '>',
-            lt: '<',
-            gte: '>=',
-            lte: '<=',
-            ne: '!=',
-            icontains: 'LIKE',
-            in: 'IN',
-          }[lookup] || '='
-        : '='
-
-      return {
-        field: key,
-        value: operator === 'LIKE' ? `%${value}%` : value,
-        operator: operator as Operator,
-        logicalOperator: 'AND' as 'AND' | 'OR' | 'NOT',
-      }
-    })
+    const newConditions = Object.entries(conditions).map(([field, value]) =>
+      this.parseFilterCondition(field, value),
+    )
 
     return this.clone({
       whereConditions: [...this.whereConditions, ...newConditions],
@@ -332,8 +323,8 @@ export class QueryBuilder<
     const newConditions = Object.entries(conditions).map(([field, value]) => ({
       field,
       value,
-      operator: '!=' as Operator,
-      logicalOperator: 'AND' as 'AND' | 'OR' | 'NOT',
+      operator: ArithmeticOperators.NE,
+      logicalOperator: LogicalOperators.AND,
     }))
 
     return this.clone({
@@ -341,55 +332,47 @@ export class QueryBuilder<
     })
   }
 
-  private formatValue(value: any): string {
-    if (value === undefined || value === null) return 'NULL'
-    if (typeof value === 'string') return `'${value}'`
-    if (Array.isArray(value)) {
-      return value.map((v) => this.formatValue(v)).join(', ')
+  private parseFilterCondition(field: string, value: any): Condition {
+    const { key, operator } = this.parseFieldAndOperator(field)
+    return {
+      field: key,
+      value: operator === 'LIKE' ? `%${value}%` : value,
+      operator: operator as Operator,
+      logicalOperator: LogicalOperators.AND,
     }
-    return String(value)
   }
 
-  private buildCondition(condition: Condition): string {
+  private buildCondition(condition: Condition, isNested = false): string {
     if (condition.isNested && Array.isArray(condition.value)) {
       const nestedConditions = condition.value
-        .map((c) => this.buildCondition(c))
+        .map((c) => this.buildCondition(c, true))
         .join(` ${condition.operator} `)
-      return condition.logicalOperator === 'NOT'
-        ? `NOT (${nestedConditions})`
-        : `(${nestedConditions})`
+
+      const baseCondition =
+        condition.operator === LogicalOperators.OR
+          ? `(${nestedConditions})`
+          : `(${nestedConditions})`
+
+      return condition.logicalOperator === LogicalOperators.NOT
+        ? `(NOT (${nestedConditions}))`
+        : baseCondition
     }
 
-    if (condition.operator === 'IN') {
-      const values = Array.isArray(condition.value)
-        ? condition.value.map((v) => `'${v}'`).join(', ')
-        : condition.value
-      return condition.logicalOperator === 'NOT'
-        ? `NOT (${condition.field} IN (${values}))`
-        : `${condition.field} IN (${values})`
-    }
-
-    const baseCondition = `${condition.field} ${
-      condition.operator
-    } ${this.formatValue(condition.value)}`
-
-    return condition.logicalOperator === 'NOT'
-      ? `NOT (${baseCondition})`
-      : baseCondition
+    const baseCondition = this.buildBaseCondition(condition)
+    return condition.logicalOperator === LogicalOperators.NOT
+      ? `(NOT (${baseCondition}))`
+      : `(${baseCondition})`
   }
 
-  public buildQuery(): string {
-    const conditions = [...this.whereConditions, ...this.excludeConditions]
-    if (conditions.length === 0) {
-      return `SELECT ${this._project} FROM ${this.tableName}${
-        this._offset ? ` OFFSET ${this._offset}` : ''
-      }${this._limit ? ` LIMIT ${this._limit}` : ''}`
-    }
+  private buildWhereClause(conditions: Condition[]): string {
+    if (conditions.length === 0) return ''
 
     const groups = conditions.reduce(
       (acc, condition) => {
         const groupId = condition.groupId || 0
-        if (!acc[groupId]) acc[groupId] = []
+        if (!acc[groupId]) {
+          acc[groupId] = []
+        }
         acc[groupId].push(condition)
         return acc
       },
@@ -398,28 +381,29 @@ export class QueryBuilder<
 
     const groupClauses = Object.values(groups).map((group) => {
       if (group.length === 1) {
-        const condition = group[0]
-        if (condition.isNested && Array.isArray(condition.value)) {
-          const nestedConditions = condition.value
-            .map((c) => this.buildCondition(c))
-            .join(` ${condition.operator} `)
-          return condition.logicalOperator === 'NOT'
-            ? `NOT (${nestedConditions})`
-            : `(${nestedConditions})`
-        }
-        return this.buildCondition(condition)
+        return this.buildCondition(group[0])
       }
-      const clause = group
-        .map((c) => this.buildCondition(c))
-        .join(` ${group[0].logicalOperator} `)
-      return `(${clause})`
+
+      return `(${group
+        .map((c) => this.buildCondition(c, true))
+        .join(` ${group[0].logicalOperator} `)})`
     })
 
-    const whereClause = groupClauses.join(' OR ')
+    const whereClause =
+      groupClauses.length > 1
+        ? `(${groupClauses.join(' OR ')})`
+        : groupClauses[0]
 
-    return `SELECT ${this._project} FROM ${
-      this.tableName
-    } WHERE (${whereClause})${this._offset ? ` OFFSET ${this._offset}` : ''}${
+    return whereClause
+  }
+
+  public buildQuery(): string {
+    const conditions = [...this.whereConditions, ...this.excludeConditions]
+    const whereClause = this.buildWhereClause(conditions)
+
+    return `SELECT ${this._project} FROM ${this.tableName}${
+      whereClause ? ` WHERE ${whereClause}` : ''
+    }${this._offset ? ` OFFSET ${this._offset}` : ''}${
       this._limit ? ` LIMIT ${this._limit}` : ''
     }`
   }
@@ -432,5 +416,31 @@ export class QueryBuilder<
     return new QueryBuilder(this.model, {
       connectionConfig: this.connectionConfig,
     })
+  }
+
+  protected buildBaseCondition(condition: Condition): string {
+    if (condition.operator === SetOperators.IN) {
+      const values = Array.isArray(condition.value)
+        ? condition.value.length === 0
+          ? '()'
+          : `('${condition.value.join("', '")}')`
+        : condition.value
+      return `${condition.field} IN ${values}`
+    }
+
+    if (condition.value === null || condition.value === undefined) {
+      return `${condition.field} IS NULL`
+    }
+
+    return `${condition.field} ${condition.operator} ${this.formatValue(condition.value)}`
+  }
+
+  protected formatValue(value: any): string {
+    if (value === undefined || value === null) return 'NULL'
+    if (typeof value === 'string') return `'${value}'`
+    if (Array.isArray(value)) {
+      return value.length === 0 ? '()' : `('${value.join("', '")}')`
+    }
+    return String(value)
   }
 }

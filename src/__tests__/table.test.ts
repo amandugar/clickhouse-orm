@@ -125,7 +125,7 @@ describe('Model', () => {
      */
     const queryRightNow = queryData2.getQuery()
     expect(queryRightNow).toBe(
-      "SELECT * FROM users WHERE ((id = 1 OR id = 2 OR (id = 3 AND email = 'test@test.com')))",
+      "SELECT * FROM users WHERE (((id = 1)) OR ((id = 2)) OR (((id = 3)) AND ((email = 'test@test.com'))))",
     )
   })
 
@@ -138,7 +138,7 @@ describe('Model', () => {
 
     const queryRightNow = queryData.getQuery()
     expect(queryRightNow).toBe(
-      'SELECT * FROM users WHERE (NOT (id = 1 OR id = 2))',
+      'SELECT * FROM users WHERE (NOT (((id = 1)) OR ((id = 2))))',
     )
 
     const query = new UserModel()
@@ -154,7 +154,7 @@ describe('Model', () => {
 
     const queryRightNow2 = queryData2.getQuery()
     expect(queryRightNow2).toBe(
-      "SELECT * FROM users WHERE (((id = 1 AND name = 'John') OR (NOT (id = 2 OR email = 'test@test.com'))))",
+      "SELECT * FROM users WHERE ((((id = 1)) AND ((name = 'John'))) OR ((NOT (((id = 2)) OR ((email = 'test@test.com'))))))",
     )
   })
 
@@ -230,13 +230,13 @@ describe('Model', () => {
       name__icontains: 'john',
     })
     expect(complexQuery.getQuery()).toBe(
-      "SELECT * FROM users WHERE ((id > 5 AND id < 10 AND name LIKE '%john%'))",
+      "SELECT * FROM users WHERE ((id > 5) AND (id < 10) AND (name LIKE '%john%'))",
     )
 
     // Test NOT with comparison operators
     const notGtQuery = user1.objects.filter(new Q<User>().not({ id__gt: 5 }))
     expect(notGtQuery.getQuery()).toBe(
-      'SELECT * FROM users WHERE (NOT (id > 5))',
+      'SELECT * FROM users WHERE (NOT ((id > 5)))',
     )
 
     // Test OR with different operators
@@ -248,7 +248,7 @@ describe('Model', () => {
       ]),
     )
     expect(orQuery.getQuery()).toBe(
-      "SELECT * FROM users WHERE ((id > 5 OR name LIKE '%john%' OR id IN ('1', '2', '3')))",
+      "SELECT * FROM users WHERE (((id > 5)) OR ((name LIKE '%john%')) OR ((id IN ('1', '2', '3'))))",
     )
   })
 
@@ -264,7 +264,7 @@ describe('Model', () => {
       ]),
     )
     expect(nestedAndQuery.getQuery()).toBe(
-      "SELECT * FROM users WHERE ((id > 5 AND name LIKE '%john%' AND (id < 10 OR id IN ('1', '2', '3'))))",
+      "SELECT * FROM users WHERE (((id > 5)) AND ((name LIKE '%john%')) AND (((id < 10)) OR ((id IN ('1', '2', '3')))))",
     )
 
     // Test NOT with nested conditions
@@ -274,7 +274,7 @@ describe('Model', () => {
       ),
     )
     expect(notNestedQuery.getQuery()).toBe(
-      "SELECT * FROM users WHERE (NOT (id > 5 AND name LIKE '%john%'))",
+      "SELECT * FROM users WHERE (NOT (((id > 5)) AND ((name LIKE '%john%'))))",
     )
   })
 
@@ -294,14 +294,16 @@ describe('Model', () => {
     )
 
     const queryRightNow = queryData.getQuery()
-    expect(queryRightNow).toBe('SELECT * FROM users WHERE ((id = 1 OR id = 2))')
+    expect(queryRightNow).toBe(
+      'SELECT * FROM users WHERE (((id = 1)) OR ((id = 2)))',
+    )
     expect(queryData2.getQuery()).toBe(
-      'SELECT * FROM users WHERE ((id = 1 OR id = 2 OR id = 3 OR id = 4))',
+      'SELECT * FROM users WHERE (((id = 1)) OR ((id = 2)) OR ((id = 3)) OR ((id = 4)))',
     )
 
     const queryRightNow3 = queryData3.getQuery()
     expect(queryRightNow3).toBe(
-      'SELECT * FROM users WHERE ((id = 5 OR id = 6))',
+      'SELECT * FROM users WHERE (((id = 5)) OR ((id = 6)))',
     )
   })
 
@@ -311,13 +313,13 @@ describe('Model', () => {
     // Test NOT with simple condition
     const notSimpleQuery = user1.objects.filter(new Q<User>().not({ id: 1 }))
     expect(notSimpleQuery.getQuery()).toBe(
-      'SELECT * FROM users WHERE (NOT (id = 1))',
+      'SELECT * FROM users WHERE (NOT ((id = 1)))',
     )
 
     // Test NOT with comparison operator
     const notGtQuery = user1.objects.filter(new Q<User>().not({ id__gt: 5 }))
     expect(notGtQuery.getQuery()).toBe(
-      'SELECT * FROM users WHERE (NOT (id > 5))',
+      'SELECT * FROM users WHERE (NOT ((id > 5)))',
     )
 
     // Test NOT with LIKE operator
@@ -325,7 +327,7 @@ describe('Model', () => {
       new Q<User>().not({ name__icontains: 'john' }),
     )
     expect(notLikeQuery.getQuery()).toBe(
-      "SELECT * FROM users WHERE (NOT (name LIKE '%john%'))",
+      "SELECT * FROM users WHERE (NOT ((name LIKE '%john%')))",
     )
 
     // Test NOT with IN operator
@@ -333,7 +335,7 @@ describe('Model', () => {
       new Q<User>().not({ id__in: [1, 2, 3] }),
     )
     expect(notInQuery.getQuery()).toBe(
-      "SELECT * FROM users WHERE (NOT (id IN ('1', '2', '3')))",
+      "SELECT * FROM users WHERE (NOT ((id IN ('1', '2', '3'))))",
     )
 
     // Test NOT with multiple conditions
@@ -344,7 +346,7 @@ describe('Model', () => {
       }),
     )
     expect(notMultipleQuery.getQuery()).toBe(
-      "SELECT * FROM users WHERE (NOT (id > 5 AND name LIKE '%john%'))",
+      "SELECT * FROM users WHERE (NOT ((id > 5) AND (name LIKE '%john%')))",
     )
 
     // Test NOT with nested OR conditions
@@ -358,7 +360,7 @@ describe('Model', () => {
       ),
     )
     expect(notNestedOrQuery.getQuery()).toBe(
-      "SELECT * FROM users WHERE (NOT (id = 1 OR name = 'John' OR email = 'test@test.com'))",
+      "SELECT * FROM users WHERE (NOT (((id = 1)) OR ((name = 'John')) OR ((email = 'test@test.com'))))",
     )
 
     // Test NOT with nested AND conditions
@@ -372,7 +374,7 @@ describe('Model', () => {
       ),
     )
     expect(notNestedAndQuery.getQuery()).toBe(
-      "SELECT * FROM users WHERE (NOT (id > 5 AND name LIKE '%john%' AND email = 'test@test.com'))",
+      "SELECT * FROM users WHERE (NOT (((id > 5)) AND ((name LIKE '%john%')) AND ((email = 'test@test.com'))))",
     )
 
     // Test NOT with complex nested conditions
@@ -385,7 +387,7 @@ describe('Model', () => {
       ),
     )
     expect(notComplexQuery.getQuery()).toBe(
-      "SELECT * FROM users WHERE (NOT ((id = 1 AND name = 'John') OR (id = 2 AND email = 'test@test.com')))",
+      "SELECT * FROM users WHERE (NOT ((((id = 1)) AND ((name = 'John'))) OR (((id = 2)) AND ((email = 'test@test.com')))))",
     )
 
     // Test NOT with multiple NOT conditions
@@ -396,7 +398,7 @@ describe('Model', () => {
       ]),
     )
     expect(notMultipleNotQuery.getQuery()).toBe(
-      "SELECT * FROM users WHERE (((NOT (id = 1)) AND (NOT (name = 'John'))))",
+      "SELECT * FROM users WHERE (((NOT ((id = 1)))) AND ((NOT ((name = 'John')))))",
     )
   })
 
@@ -412,7 +414,7 @@ describe('Model', () => {
       new Q<User>().not({ name: undefined }),
     )
     expect(notUndefinedQuery.getQuery()).toBe(
-      'SELECT * FROM users WHERE (NOT (name = NULL))',
+      'SELECT * FROM users WHERE (NOT ((name IS NULL)))',
     )
 
     // Test NOT with boolean values
@@ -420,7 +422,7 @@ describe('Model', () => {
       new Q<User>().not({ isActive: true }),
     )
     expect(notBooleanQuery.getQuery()).toBe(
-      'SELECT * FROM users WHERE (NOT (isActive = true))',
+      'SELECT * FROM users WHERE (NOT ((isActive = true)))',
     )
 
     // Test NOT with multiple NOT operations
@@ -428,10 +430,10 @@ describe('Model', () => {
       new Q<User>().not(new Q<User>().not({ id: 1 })),
     )
     expect(doubleNotQuery.getQuery()).toBe(
-      'SELECT * FROM users WHERE (NOT (NOT (id = 1)))',
+      'SELECT * FROM users WHERE (NOT ((NOT ((id = 1)))))',
     )
 
-    // Test NOT with mixed operators in a single condition
+    // Test NOT with mixed operators
     const mixedOperatorsQuery = user1.objects.filter(
       new Q<User>().not({
         id__gt: 5,
@@ -441,7 +443,7 @@ describe('Model', () => {
       }),
     )
     expect(mixedOperatorsQuery.getQuery()).toBe(
-      "SELECT * FROM users WHERE (NOT (id > 5 AND id < 10 AND name LIKE '%john%' AND email = 'test@test.com'))",
+      "SELECT * FROM users WHERE (NOT ((id > 5) AND (id < 10) AND (name LIKE '%john%') AND (email = 'test@test.com')))",
     )
 
     // Test NOT with deeply nested conditions
@@ -460,7 +462,7 @@ describe('Model', () => {
       ),
     )
     expect(deepNestedQuery.getQuery()).toBe(
-      "SELECT * FROM users WHERE (NOT ((id > 5 AND (name LIKE '%john%' OR email = 'test@test.com')) OR (id < 10 AND name LIKE '%jane%')))",
+      "SELECT * FROM users WHERE (NOT ((((id > 5)) AND (((name LIKE '%john%')) OR ((email = 'test@test.com')))) OR (((id < 10)) AND ((name LIKE '%jane%')))))",
     )
 
     // Test NOT with multiple groups
@@ -473,7 +475,7 @@ describe('Model', () => {
       ]),
     )
     expect(multipleGroupsQuery.getQuery()).toBe(
-      "SELECT * FROM users WHERE (((NOT (id = 1)) AND (NOT (name = 'John' OR email = 'test@test.com'))))",
+      "SELECT * FROM users WHERE (((NOT ((id = 1)))) AND ((NOT (((name = 'John')) OR ((email = 'test@test.com'))))))",
     )
 
     // Test NOT with multiple conditions on the same field
@@ -484,13 +486,13 @@ describe('Model', () => {
       }),
     )
     expect(sameFieldQuery.getQuery()).toBe(
-      'SELECT * FROM users WHERE (NOT (id > 5 AND id < 10))',
+      'SELECT * FROM users WHERE (NOT ((id > 5) AND (id < 10)))',
     )
 
     // Test NOT with IN operator and empty array
     const emptyInQuery = user1.objects.filter(new Q<User>().not({ id__in: [] }))
     expect(emptyInQuery.getQuery()).toBe(
-      'SELECT * FROM users WHERE (NOT (id IN ()))',
+      'SELECT * FROM users WHERE (NOT ((id IN ())))',
     )
   })
 })
