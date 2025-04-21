@@ -36,16 +36,6 @@ type WithOperators<T> = {
   [K in keyof T as K extends string ? `${K}__in` : never]: T[K][]
 }
 
-const OPERATOR_MAP = {
-  [ComparisonOperators.GT]: '>',
-  [ComparisonOperators.LT]: '<',
-  [ComparisonOperators.GTE]: '>=',
-  [ComparisonOperators.LTE]: '<=',
-  [ComparisonOperators.NE]: '!=',
-  [StringOperators.ICONTAINS]: 'LIKE',
-  [SetOperators.IN]: 'IN',
-} as const
-
 const LOOKUP_OPERATOR_MAP = {
   gt: '>',
   lt: '<',
@@ -342,10 +332,10 @@ export class QueryBuilder<
     }
   }
 
-  private buildCondition(condition: Condition, isNested = false): string {
+  private buildCondition(condition: Condition): string {
     if (condition.isNested && Array.isArray(condition.value)) {
       const nestedConditions = condition.value
-        .map((c) => this.buildCondition(c, true))
+        .map((c) => this.buildCondition(c))
         .join(` ${condition.operator} `)
 
       const baseCondition =
@@ -385,7 +375,7 @@ export class QueryBuilder<
       }
 
       return `(${group
-        .map((c) => this.buildCondition(c, true))
+        .map((c) => this.buildCondition(c))
         .join(` ${group[0].logicalOperator} `)})`
     })
 
