@@ -1,6 +1,6 @@
 {
-  "name": "@amandugar/clickhouseorm",
-  "version": "1.0.1",
+  "name": "clickorm",
+  "version": "1.0.2",
   "description": "A TypeScript ORM for ClickHouse with migrations support",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -30,16 +30,16 @@
     "database",
     "migrations"
   ],
-  "author": "",
+  "author": "Aman Dugar",
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourusername/clickhouse-orm.git"
+    "url": "git+https://github.com/amandugar/clickhouse-orm.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/clickhouse-orm/issues"
+    "url": "https://github.com/amandugar/clickhouse-orm/issues"
   },
-  "homepage": "https://github.com/yourusername/clickhouse-orm#readme",
+  "homepage": "https://github.com/amandugar/clickhouse-orm#readme",
   "dependencies": {
     "@clickhouse/client": "^1.11.1",
     "lodash": "^4.17.21"
