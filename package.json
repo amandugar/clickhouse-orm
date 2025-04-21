@@ -1,5 +1,5 @@
 {
-  "name": "clicksy",
+  "name": "thunder-schema",
   "version": "1.0.3",
   "description": "A TypeScript ORM for ClickHouse with migrations support",
   "main": "dist/index.js",
