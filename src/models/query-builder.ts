@@ -2,21 +2,15 @@ import { DataRetrival } from './data-retrival'
 import { Model } from './model'
 import { ConnectionConfig } from '../utils/database/connection-manager'
 import {
-  ComparisonOperators,
+  FieldOperators,
   LogicalOperators,
-  StringOperators,
-  SetOperators,
   OperatorSuffix,
   LogicalOperator,
-  ArithmeticOperators,
+  SqlOperators,
+  FIELD_TO_SQL_OPERATOR,
 } from './operators'
 
-type Operator =
-  | ComparisonOperators
-  | LogicalOperators
-  | StringOperators
-  | SetOperators
-  | ArithmeticOperators
+type Operator = SqlOperators | LogicalOperators
 
 type Condition = {
   field: string
@@ -28,23 +22,20 @@ type Condition = {
   parentOperator?: LogicalOperator
 }
 
+type Conditions<T extends Record<string, unknown>> =
+  | Q<T>
+  | WithOperators<Partial<T>>
+  | Array<Q<T> | WithOperators<Partial<T>>>
+
 type WithOperators<T> = {
   [K in keyof T as K extends string
-    ? K | `${K}${Exclude<OperatorSuffix, '__in'>}`
+    ? K | `${K}${Exclude<OperatorSuffix, FieldOperators.IN>}`
     : never]: T[K]
 } & {
-  [K in keyof T as K extends string ? `${K}__in` : never]: T[K][]
+  [K in keyof T as K extends string
+    ? `${K}${FieldOperators.IN}`
+    : never]: T[K][]
 }
-
-const LOOKUP_OPERATOR_MAP = {
-  gt: '>',
-  lt: '<',
-  gte: '>=',
-  lte: '<=',
-  ne: '!=',
-  icontains: 'LIKE',
-  in: 'IN',
-} as const
 
 export class Q<T extends Record<string, unknown>> {
   public whereConditions: Condition[] = []
@@ -52,21 +43,24 @@ export class Q<T extends Record<string, unknown>> {
 
   protected parseFieldAndOperator(field: string): {
     key: string
-    operator: string
+    operator: SqlOperators
   } {
     const [key, lookup] = field.split('__')
-    const operator = lookup ? LOOKUP_OPERATOR_MAP[lookup] || '=' : '='
+    const fieldOperator = lookup
+      ? (`__${lookup}` as FieldOperators)
+      : FieldOperators.EQ
+    const operator = FIELD_TO_SQL_OPERATOR[fieldOperator] || SqlOperators.EQ
     return { key, operator }
   }
 
   private parseConditionField(field: string, value: any): Condition {
     const { key, operator } = this.parseFieldAndOperator(field)
-    const processedValue = operator === 'LIKE' ? `%${value}%` : value
+    const processedValue = operator === SqlOperators.LIKE ? `%${value}%` : value
 
     return {
       field: key,
       value: processedValue,
-      operator: operator as Operator,
+      operator,
       logicalOperator: LogicalOperators.AND,
       groupId: this.groupCounter,
     }
@@ -83,14 +77,26 @@ export class Q<T extends Record<string, unknown>> {
       this.parseConditionField(field, value),
     )
 
-    this.whereConditions.push({
-      field: '',
-      value: nestedConditions,
-      operator: LogicalOperators.AND,
-      isNested: true,
-      logicalOperator,
-      groupId,
-    })
+    if (logicalOperator === LogicalOperators.NOT) {
+      // For NOT operations, we need to preserve the AND relationship between conditions
+      this.whereConditions.push({
+        field: '',
+        value: nestedConditions,
+        operator: LogicalOperators.AND,
+        isNested: true,
+        logicalOperator: LogicalOperators.NOT,
+        groupId,
+      })
+    } else {
+      this.whereConditions.push({
+        field: '',
+        value: nestedConditions,
+        operator: logicalOperator,
+        isNested: true,
+        logicalOperator,
+        groupId,
+      })
+    }
   }
 
   private addCondition(
@@ -99,11 +105,12 @@ export class Q<T extends Record<string, unknown>> {
     groupId: number,
   ) {
     if (condition instanceof Q) {
+      const operator =
+        condition.whereConditions[0]?.logicalOperator || LogicalOperators.AND
       this.whereConditions.push({
         field: '',
         value: condition.whereConditions,
-        operator:
-          condition.whereConditions[0]?.logicalOperator || LogicalOperators.AND,
+        operator,
         isNested: true,
         logicalOperator,
         groupId,
@@ -118,50 +125,48 @@ export class Q<T extends Record<string, unknown>> {
   }
 
   private handleConditions(
-    conditions:
-      | Q<T>
-      | WithOperators<Partial<T>>
-      | Array<Q<T> | WithOperators<Partial<T>>>,
+    conditions: Conditions<T>,
     logicalOperator: LogicalOperator,
   ) {
     const groupId = ++this.groupCounter
     if (Array.isArray(conditions)) {
-      conditions.forEach((condition) =>
-        this.addCondition(condition, logicalOperator, groupId),
-      )
+      conditions.forEach((condition, index) => {
+        if (condition instanceof Q) {
+          // For Q instances in an array, we need to preserve their internal operator
+          this.addCondition(condition, logicalOperator, groupId)
+        } else {
+          // For plain objects, use the parent logical operator
+          this.addNestedConditions(
+            Object.entries(condition),
+            logicalOperator,
+            groupId,
+          )
+        }
+      })
     } else {
       this.addCondition(conditions, logicalOperator, groupId)
     }
     return this
   }
 
-  public and(
-    conditions:
-      | Q<T>
-      | WithOperators<Partial<T>>
-      | Array<Q<T> | WithOperators<Partial<T>>>,
-  ) {
+  public and(conditions: Conditions<T>) {
     return this.handleConditions(conditions, LogicalOperators.AND)
   }
 
-  public or(
-    conditions:
-      | Q<T>
-      | WithOperators<Partial<T>>
-      | Array<Q<T> | WithOperators<Partial<T>>>,
-  ) {
+  public or(conditions: Conditions<T>) {
     return this.handleConditions(conditions, LogicalOperators.OR)
   }
 
   public not(conditions: Q<T> | WithOperators<Partial<T>>) {
     const groupId = ++this.groupCounter
     if (conditions instanceof Q) {
+      // Preserve the original operator in NOT operations
+      const operator =
+        conditions.whereConditions[0]?.logicalOperator || LogicalOperators.AND
       this.whereConditions.push({
         field: '',
         value: conditions.whereConditions,
-        operator:
-          conditions.whereConditions[0]?.logicalOperator ||
-          LogicalOperators.AND,
+        operator,
         isNested: true,
         logicalOperator: LogicalOperators.NOT,
         groupId,
@@ -177,7 +182,7 @@ export class Q<T extends Record<string, unknown>> {
   }
 
   protected buildBaseCondition(condition: Condition): string {
-    if (condition.operator === SetOperators.IN) {
+    if (condition.operator === SqlOperators.IN) {
       const values = Array.isArray(condition.value)
         ? condition.value.length === 0
           ? '()'
@@ -272,10 +277,13 @@ export class QueryBuilder<
 
   protected parseFieldAndOperator(field: string): {
     key: string
-    operator: string
+    operator: SqlOperators
   } {
     const [key, lookup] = field.split('__')
-    const operator = lookup ? LOOKUP_OPERATOR_MAP[lookup] || '=' : '='
+    const fieldOperator = lookup
+      ? (`__${lookup}` as FieldOperators)
+      : FieldOperators.EQ
+    const operator = FIELD_TO_SQL_OPERATOR[fieldOperator] || SqlOperators.EQ
     return { key, operator }
   }
 
@@ -313,7 +321,7 @@ export class QueryBuilder<
     const newConditions = Object.entries(conditions).map(([field, value]) => ({
       field,
       value,
-      operator: ArithmeticOperators.NE,
+      operator: SqlOperators.NE,
       logicalOperator: LogicalOperators.AND,
     }))
 
@@ -326,8 +334,8 @@ export class QueryBuilder<
     const { key, operator } = this.parseFieldAndOperator(field)
     return {
       field: key,
-      value: operator === 'LIKE' ? `%${value}%` : value,
-      operator: operator as Operator,
+      value: operator === SqlOperators.LIKE ? `%${value}%` : value,
+      operator,
       logicalOperator: LogicalOperators.AND,
     }
   }
@@ -409,7 +417,7 @@ export class QueryBuilder<
   }
 
   protected buildBaseCondition(condition: Condition): string {
-    if (condition.operator === SetOperators.IN) {
+    if (condition.operator === SqlOperators.IN) {
       const values = Array.isArray(condition.value)
         ? condition.value.length === 0
           ? '()'
