@@ -1,3 +1,4 @@
+import { ConnectionManager } from '../utils/database/connection-manager'
 import { Model } from './model'
 
 export abstract class DataRetrival<
@@ -14,7 +15,10 @@ export abstract class DataRetrival<
 
   public async *[Symbol.asyncIterator](): AsyncIterator<T> {
     this.buildQuery()
-    const withConnection = await this.model.withConnection(async (client) => {
+    const connectionManager = ConnectionManager.getDefaultOrCreate(
+      this.model.prototype.connectionConfig,
+    )
+    const withConnection = await connectionManager.with(async (client) => {
       return await client.query({
         query: this.getQuery(),
         format: 'JSONEachRow',

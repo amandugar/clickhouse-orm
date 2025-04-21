@@ -67,7 +67,7 @@ export abstract class Model<
 > {
   protected static fields: FieldsOf<any> = {}
   public static tableDefinition: TableDefinition<any>
-  protected connectionConfig?: ConnectionConfig
+  public connectionConfig?: ConnectionConfig
 
   public objects: QueryBuilder<T, M>
   public values: Partial<T> = {}
@@ -75,7 +75,9 @@ export abstract class Model<
   constructor(connectionConfig?: ConnectionConfig) {
     this.connectionConfig = connectionConfig
     const constructor = this.constructor as typeof Model<T, M>
-    this.objects = new QueryBuilder<T, M>(constructor, connectionConfig)
+    this.objects = new QueryBuilder<T, M>(constructor, {
+      connectionConfig,
+    })
   }
 
   public create(data: Partial<T>): this {
@@ -129,7 +131,7 @@ export abstract class Model<
     }
   }
 
-  public static async withConnection<
+  protected static async withConnection<
     R,
     C extends ConnectionCredentials = ConnectionCredentials,
   >(
