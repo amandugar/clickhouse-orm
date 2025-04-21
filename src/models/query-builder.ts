@@ -37,11 +37,8 @@ type WithOperators<T> = {
     : never]: T[K][]
 }
 
-export class Q<T extends Record<string, unknown>> {
-  public whereConditions: Condition[] = []
-  private groupCounter: number = 0
-
-  protected parseFieldAndOperator(field: string): {
+class BaseQueryBuilder {
+  public parseFieldAndOperator(field: string): {
     key: string
     operator: SqlOperators
   } {
@@ -52,6 +49,37 @@ export class Q<T extends Record<string, unknown>> {
     const operator = FIELD_TO_SQL_OPERATOR[fieldOperator] || SqlOperators.EQ
     return { key, operator }
   }
+
+  public buildBaseCondition(condition: Condition): string {
+    if (condition.operator === SqlOperators.IN) {
+      const values = Array.isArray(condition.value)
+        ? condition.value.length === 0
+          ? '()'
+          : `('${condition.value.join("', '")}')`
+        : condition.value
+      return `${condition.field} IN ${values}`
+    }
+
+    if (condition.value === null || condition.value === undefined) {
+      return `${condition.field} IS NULL`
+    }
+
+    return `${condition.field} ${condition.operator} ${this.formatValue(condition.value)}`
+  }
+
+  protected formatValue(value: any): string {
+    if (value === undefined || value === null) return 'NULL'
+    if (typeof value === 'string') return `'${value}'`
+    if (Array.isArray(value)) {
+      return value.length === 0 ? '()' : `('${value.join("', '")}')`
+    }
+    return String(value)
+  }
+}
+
+export class Q<T extends Record<string, unknown>> extends BaseQueryBuilder {
+  public whereConditions: Condition[] = []
+  private groupCounter: number = 0
 
   private parseConditionField(field: string, value: any): Condition {
     const { key, operator } = this.parseFieldAndOperator(field)
@@ -78,7 +106,7 @@ export class Q<T extends Record<string, unknown>> {
     )
 
     if (logicalOperator === LogicalOperators.NOT) {
-      // For NOT operations, we need to preserve the AND relationship between conditions
+      // For NOT operations, we need to preserve the AND relationship between conditions because the NOT operator is applied to the entire condition
       this.whereConditions.push({
         field: '',
         value: nestedConditions,
@@ -130,7 +158,7 @@ export class Q<T extends Record<string, unknown>> {
   ) {
     const groupId = ++this.groupCounter
     if (Array.isArray(conditions)) {
-      conditions.forEach((condition, index) => {
+      conditions.forEach((condition) => {
         if (condition instanceof Q) {
           // For Q instances in an array, we need to preserve their internal operator
           this.addCondition(condition, logicalOperator, groupId)
@@ -180,32 +208,6 @@ export class Q<T extends Record<string, unknown>> {
     }
     return this
   }
-
-  protected buildBaseCondition(condition: Condition): string {
-    if (condition.operator === SqlOperators.IN) {
-      const values = Array.isArray(condition.value)
-        ? condition.value.length === 0
-          ? '()'
-          : `('${condition.value.join("', '")}')`
-        : condition.value
-      return `${condition.field} IN ${values}`
-    }
-
-    if (condition.value === null || condition.value === undefined) {
-      return `${condition.field} IS NULL`
-    }
-
-    return `${condition.field} ${condition.operator} ${this.formatValue(condition.value)}`
-  }
-
-  protected formatValue(value: any): string {
-    if (value === undefined || value === null) return 'NULL'
-    if (typeof value === 'string') return `'${value}'`
-    if (Array.isArray(value)) {
-      return value.length === 0 ? '()' : `('${value.join("', '")}')`
-    }
-    return String(value)
-  }
 }
 
 export class QueryBuilder<
@@ -219,6 +221,7 @@ export class QueryBuilder<
   private readonly _limit: number | undefined = undefined
   private readonly _project: string = '*'
   private readonly connectionConfig?: ConnectionConfig
+  private readonly baseQueryBuilder: BaseQueryBuilder
 
   constructor(
     model: typeof Model<T, M>,
@@ -239,6 +242,7 @@ export class QueryBuilder<
     this._limit = options.limit
     this._project = options.project || '*'
     this.connectionConfig = options.connectionConfig
+    this.baseQueryBuilder = new BaseQueryBuilder()
   }
 
   private clone(
@@ -279,12 +283,7 @@ export class QueryBuilder<
     key: string
     operator: SqlOperators
   } {
-    const [key, lookup] = field.split('__')
-    const fieldOperator = lookup
-      ? (`__${lookup}` as FieldOperators)
-      : FieldOperators.EQ
-    const operator = FIELD_TO_SQL_OPERATOR[fieldOperator] || SqlOperators.EQ
-    return { key, operator }
+    return this.baseQueryBuilder.parseFieldAndOperator(field)
   }
 
   public filter(
@@ -346,17 +345,14 @@ export class QueryBuilder<
         .map((c) => this.buildCondition(c))
         .join(` ${condition.operator} `)
 
-      const baseCondition =
-        condition.operator === LogicalOperators.OR
-          ? `(${nestedConditions})`
-          : `(${nestedConditions})`
+      const baseCondition = `(${nestedConditions})`
 
       return condition.logicalOperator === LogicalOperators.NOT
         ? `(NOT (${nestedConditions}))`
         : baseCondition
     }
 
-    const baseCondition = this.buildBaseCondition(condition)
+    const baseCondition = this.baseQueryBuilder.buildBaseCondition(condition)
     return condition.logicalOperator === LogicalOperators.NOT
       ? `(NOT (${baseCondition}))`
       : `(${baseCondition})`
@@ -414,31 +410,5 @@ export class QueryBuilder<
     return new QueryBuilder(this.model, {
       connectionConfig: this.connectionConfig,
     })
-  }
-
-  protected buildBaseCondition(condition: Condition): string {
-    if (condition.operator === SqlOperators.IN) {
-      const values = Array.isArray(condition.value)
-        ? condition.value.length === 0
-          ? '()'
-          : `('${condition.value.join("', '")}')`
-        : condition.value
-      return `${condition.field} IN ${values}`
-    }
-
-    if (condition.value === null || condition.value === undefined) {
-      return `${condition.field} IS NULL`
-    }
-
-    return `${condition.field} ${condition.operator} ${this.formatValue(condition.value)}`
-  }
-
-  protected formatValue(value: any): string {
-    if (value === undefined || value === null) return 'NULL'
-    if (typeof value === 'string') return `'${value}'`
-    if (Array.isArray(value)) {
-      return value.length === 0 ? '()' : `('${value.join("', '")}')`
-    }
-    return String(value)
   }
 }
