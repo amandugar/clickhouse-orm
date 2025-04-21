@@ -8,21 +8,36 @@
  */
 
 /**
- * Comparison Operators
- *
- * These operators are used for comparing field values.
+ * Base SQL Operators
+ * These are the actual SQL operators used in queries
  */
-
-export enum ArithmeticOperators {
+export enum SqlOperators {
   EQ = '=',
   NE = '!=',
   GT = '>',
   LT = '<',
   GTE = '>=',
   LTE = '<=',
+  LIKE = 'LIKE',
+  IN = 'IN',
+  IS = 'IS',
+  NULL = 'NULL',
 }
 
-export enum ComparisonOperators {
+/**
+ * Field Suffix Operators
+ * These are the suffixes used in field names to specify operators
+ */
+export enum FieldOperators {
+  /**
+   * Equal to
+   * @example
+   * ```typescript
+   * { age: 18 } // age = 18
+   * ```
+   */
+  EQ = '',
+
   /**
    * Greater than
    * @example
@@ -67,14 +82,7 @@ export enum ComparisonOperators {
    * ```
    */
   NE = '__ne',
-}
 
-/**
- * String Operators
- *
- * These operators are used for string pattern matching.
- */
-export enum StringOperators {
   /**
    * Case-insensitive contains
    * @example
@@ -83,14 +91,7 @@ export enum StringOperators {
    * ```
    */
   ICONTAINS = '__icontains',
-}
 
-/**
- * Set Operators
- *
- * These operators are used for checking if a value is in a set.
- */
-export enum SetOperators {
   /**
    * In set
    * @example
@@ -139,13 +140,24 @@ export enum LogicalOperators {
 }
 
 /**
+ * Type-safe mapping from field operators to SQL operators
+ */
+export const FIELD_TO_SQL_OPERATOR: Record<FieldOperators, SqlOperators> = {
+  [FieldOperators.EQ]: SqlOperators.EQ,
+  [FieldOperators.GT]: SqlOperators.GT,
+  [FieldOperators.LT]: SqlOperators.LT,
+  [FieldOperators.GTE]: SqlOperators.GTE,
+  [FieldOperators.LTE]: SqlOperators.LTE,
+  [FieldOperators.NE]: SqlOperators.NE,
+  [FieldOperators.ICONTAINS]: SqlOperators.LIKE,
+  [FieldOperators.IN]: SqlOperators.IN,
+} as const
+
+/**
  * All available operator suffixes
  */
-export type OperatorSuffix =
-  | ComparisonOperators
-  | StringOperators
-  | SetOperators
-  | ArithmeticOperators
+export type OperatorSuffix = FieldOperators
+
 /**
  * All available logical operators
  */
