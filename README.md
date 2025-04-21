@@ -1,4 +1,4 @@
-# ClickHouse ORM
+# Clicksy
 
 A TypeScript ORM for ClickHouse with migrations support.
 
@@ -14,7 +14,7 @@ A TypeScript ORM for ClickHouse with migrations support.
 ## Installation
 
 ```bash
-npm install clickhouse-orm
+npm install clicksy
 ```
 
 ## Quick Start
@@ -25,7 +25,7 @@ import {
   StringField,
   NumberField,
   TableDefinition,
-} from '@amandugar/clickhouseorm'
+} from 'clicksy'
 
 // Define your model
 class User extends Model<User> {

@@ -1,6 +1,6 @@
 {
-  "name": "clickorm",
-  "version": "1.0.2",
+  "name": "clicksy",
+  "version": "1.0.3",
   "description": "A TypeScript ORM for ClickHouse with migrations support",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -28,7 +28,9 @@
     "orm",
     "typescript",
     "database",
-    "migrations"
+    "migrations",
+    "clickhouse-orm",
+    "clicksy"
   ],
   "author": "Aman Dugar",
   "license": "ISC",
