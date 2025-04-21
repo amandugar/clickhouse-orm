@@ -14,7 +14,7 @@ A TypeScript ORM for ClickHouse with migrations support.
 ## Installation
 
 ```bash
-npm install clicksy
+npm install thunder-schema
 ```
 
 ## Quick Start
@@ -25,7 +25,7 @@ import {
   StringField,
   NumberField,
   TableDefinition,
-} from 'clicksy'
+} from 'thunder-schema'
 
 // Define your model
 class User extends Model<User> {
