@@ -18,15 +18,12 @@ program
 program
   .command('makemigrations')
   .description('Generate migration files')
-  .argument('<model-path>', 'Path to the model file')
-  .argument('[output-path]', 'Path to output migrations')
-  .action(async (modelPath: string, outputPath?: string) => {
-    if (!outputPath) {
-      outputPath = path.join(process.cwd(), 'migrations')
-    }
-    if (!modelPath) {
-      modelPath = path.join(process.cwd(), 'models')
-    }
+  .option('-m, --model-path <path>', 'Path to the model file')
+  .option('-o, --output-path <path>', 'Path to output migrations')
+  .action(async (options) => {
+    const outputPath =
+      options.outputPath || path.join(process.cwd(), 'migrations')
+    const modelPath = options.modelPath || path.join(process.cwd(), 'models')
     const credentials = getCredentials()
     const migrationService = new MigrationService(outputPath, credentials)
     await migrationService.generateSchema(modelPath)
@@ -35,11 +32,10 @@ program
 program
   .command('readmigrations')
   .description('List all migrations')
-  .argument('[migrations-path]', 'Path to migrations')
-  .action((migrationsPath?: string) => {
-    if (!migrationsPath) {
-      migrationsPath = path.join(process.cwd(), 'migrations')
-    }
+  .option('-p, --migrations-path <path>', 'Path to migrations')
+  .action((options) => {
+    const migrationsPath =
+      options.migrationsPath || path.join(process.cwd(), 'migrations')
     const credentials = getCredentials()
     const migrationService = new MigrationService(migrationsPath, credentials)
     const migrations = migrationService.readMigrations()
@@ -49,11 +45,10 @@ program
 program
   .command('migrate')
   .description('Apply pending migrations')
-  .argument('[migrations-path]', 'Path to migrations')
-  .action(async (migrationsPath?: string) => {
-    if (!migrationsPath) {
-      migrationsPath = path.join(process.cwd(), 'migrations')
-    }
+  .option('-p, --migrations-path <path>', 'Path to migrations')
+  .action(async (options) => {
+    const migrationsPath =
+      options.migrationsPath || path.join(process.cwd(), 'migrations')
     const credentials = getCredentials()
     const migrationService = new MigrationService(migrationsPath, credentials)
     await migrationService.migrate()
