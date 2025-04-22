@@ -7,6 +7,7 @@ import {
 } from '../models'
 import { TableDefinition } from '../models/types/table-definition'
 import { Q } from '../models/query-builder'
+import { Engine } from '../utils/engines/engines'
 
 type Name = {
   first?: string
@@ -66,7 +67,7 @@ class UserModel extends Model<User> {
 
   static tableDefinition: TableDefinition<User> = {
     tableName: 'users',
-    engine: 'MergeTree',
+    engine: Engine.MERGE_TREE,
     orderBy: ['id'],
   }
 }

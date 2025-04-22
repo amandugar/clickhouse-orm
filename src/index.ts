@@ -1,5 +1,4 @@
 import { Model } from './models/model'
-import { QueryBuilder } from './models/query-builder'
 import {
   ConnectionManager,
   ConnectionCredentials,
@@ -7,10 +6,12 @@ import {
 } from './utils/database/connection-manager'
 import { MigrationService } from './services/MigrationService'
 import { MigrationRunner } from './services/MigrationRunner'
+import { NumberTypes } from './models/fields/number-field'
+import { StringTypes } from './models/fields/string-field'
+import { BooleanTypes } from './models/fields/boolean-field'
 
 export {
   Model,
-  QueryBuilder,
   ConnectionManager,
   ConnectionCredentials,
   ConnectionConfig,
@@ -22,4 +23,16 @@ export {
 export * from './models/fields/base-field'
 export * from './models/types/table-definition'
 export * from './models/model'
-export * from './@types'
+export * from './services/types'
+export * from './models/fields/boolean-field'
+export * from './models/fields/number-field'
+export * from './models/fields/string-field'
+export * from './models/fields/array-field'
+export * from './models/fields/tuple-field'
+export * from './models/model'
+
+export const Types = {
+  Number: NumberTypes,
+  String: StringTypes,
+  Boolean: BooleanTypes,
+} as const

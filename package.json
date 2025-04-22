@@ -1,9 +1,17 @@
 {
   "name": "thunder-schema",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "A TypeScript ORM for ClickHouse with migrations support",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
   "files": [
     "dist",
     "README.md",
@@ -61,7 +69,7 @@
     "rimraf": "^5.0.0",
     "ts-jest": "^29.3.2",
     "ts-node": "^10.9.2",
-    "typescript": "^5.0.0"
+    "typescript": "^5.8.3"
   },
   "engines": {
     "node": ">=18.17.1"
