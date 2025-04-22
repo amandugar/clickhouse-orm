@@ -106,7 +106,7 @@ export enum FieldOperators {
    * Has any of the values
    * @example
    * ```typescript
-   * { tags__has_any: ['python', 'typescript'] } // tags HAS ANY ('python', 'typescript')
+   * { tags__has_any: ['python', 'typescript'] } // hasAny(tags, ['python', 'typescript'])
    * ```
    */
   HAS_ANY = '__has_any',
