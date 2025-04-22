@@ -102,6 +102,7 @@ export class MigrationService {
       const filePath = path.resolve(`${this.migrationsPath}/${migration}`)
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       require('ts-node').register()
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const diff = require(filePath).diff
       return diff
     })
@@ -292,6 +293,7 @@ export class MigrationService {
       // Import the models dynamically
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       require('ts-node').register()
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const models = require(absolutePath)
 
       console.log(`Generating schema from ${modelPath}:`)

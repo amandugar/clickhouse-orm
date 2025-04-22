@@ -341,7 +341,7 @@ export class Q<T extends ModelType> extends BaseQueryBuilder {
 export class QueryBuilder<
   T extends ModelType,
   M extends ModelType,
-> extends DataRetrival<T, M> {
+> extends DataRetrival<T> {
   private readonly tableName: string
   private readonly engine: Engine
   private readonly whereConditions: Condition[] = []
