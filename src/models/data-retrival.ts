@@ -2,9 +2,9 @@ import {
   ConnectionConfig,
   ConnectionManager,
 } from '../utils/database/connection-manager'
-import { Model, ModelType } from './model'
+import { ModelType } from './model'
 
-export abstract class DataRetrival<T extends ModelType, M extends ModelType> {
+export abstract class DataRetrival<T extends ModelType> {
   abstract buildQuery(): string
   abstract getQuery(): string
   private _connectionConfig?: ConnectionConfig
