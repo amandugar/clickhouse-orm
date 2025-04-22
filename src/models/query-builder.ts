@@ -28,13 +28,9 @@ type Conditions<T extends Record<string, unknown>> =
   | Array<Q<T> | WithOperators<Partial<T>>>
 
 type WithOperators<T> = {
-  [K in keyof T as K extends string
-    ? K | `${K}${Exclude<OperatorSuffix, FieldOperators.IN>}`
-    : never]: T[K]
-} & {
-  [K in keyof T as K extends string
-    ? `${K}${FieldOperators.IN}`
-    : never]: T[K][]
+  [K in keyof T as K extends string ? K | `${K}${OperatorSuffix}` : never]:
+    | T[K]
+    | T[K][]
 }
 
 class BaseQueryBuilder {
@@ -42,12 +38,12 @@ class BaseQueryBuilder {
     key: string
     operator: SqlOperators
   } {
-    const [key, lookup] = field.split('__')
+    const [fieldName, lookup] = field.split('__')
     const fieldOperator = lookup
       ? (`__${lookup}` as FieldOperators)
       : FieldOperators.EQ
     const operator = FIELD_TO_SQL_OPERATOR[fieldOperator] || SqlOperators.EQ
-    return { key, operator }
+    return { key: fieldName, operator }
   }
 
   public buildBaseCondition(condition: Condition): string {
@@ -90,6 +86,59 @@ export class Q<T extends Record<string, unknown>> extends BaseQueryBuilder {
   public whereConditions: Condition[] = []
   private groupCounter: number = 0
 
+  private parseNestedField(field: string, value: any): Condition[] {
+    const conditions: Condition[] = []
+
+    const processNestedObject = (obj: any, prefix: string) => {
+      const nestedConditions: Condition[] = []
+      Object.entries(obj).forEach(([key, val]) => {
+        if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
+          const childConditions = processNestedObject(val, `${prefix}.${key}`)
+          if (childConditions.length > 0) {
+            conditions.push({
+              field: '',
+              value: childConditions,
+              operator: LogicalOperators.AND,
+              isNested: true,
+              logicalOperator: LogicalOperators.AND,
+            })
+          }
+        } else {
+          const { key: fieldName, operator } = this.parseFieldAndOperator(key)
+          const actualField = prefix ? `${prefix}.${fieldName}` : fieldName
+
+          let processedValue = val
+          if (operator === SqlOperators.LIKE) {
+            processedValue = `%${val}%`
+          } else if (operator === SqlOperators.IN) {
+            processedValue = Array.isArray(val) ? val : [val]
+          }
+
+          nestedConditions.push({
+            field: actualField,
+            value: processedValue,
+            operator,
+            logicalOperator: LogicalOperators.AND,
+          })
+        }
+      })
+      return nestedConditions
+    }
+
+    const nestedConditions = processNestedObject(value, field)
+    if (nestedConditions.length > 0) {
+      conditions.push({
+        field: '',
+        value: nestedConditions,
+        operator: LogicalOperators.AND,
+        isNested: true,
+        logicalOperator: LogicalOperators.AND,
+      })
+    }
+
+    return conditions
+  }
+
   private parseConditionField(field: string, value: any): Condition {
     const { key, operator } = this.parseFieldAndOperator(field)
     const processedValue = operator === SqlOperators.LIKE ? `%${value}%` : value
@@ -110,9 +159,16 @@ export class Q<T extends Record<string, unknown>> extends BaseQueryBuilder {
   ) {
     if (entries.length === 0) return
 
-    const nestedConditions = entries.map(([field, value]) =>
-      this.parseConditionField(field, value),
-    )
+    const nestedConditions = entries.flatMap(([field, value]) => {
+      if (
+        typeof value === 'object' &&
+        value !== null &&
+        !Array.isArray(value)
+      ) {
+        return this.parseNestedField(field, value)
+      }
+      return [this.parseConditionField(field, value)]
+    })
 
     if (logicalOperator === LogicalOperators.NOT) {
       // For NOT operations, we need to preserve the AND relationship between conditions because the NOT operator is applied to the entire condition
@@ -181,7 +237,32 @@ export class Q<T extends Record<string, unknown>> extends BaseQueryBuilder {
         }
       })
     } else {
-      this.addCondition(conditions, logicalOperator, groupId)
+      if (conditions instanceof Q) {
+        this.addCondition(conditions, logicalOperator, groupId)
+      } else {
+        // Handle nested objects in Q class
+        const nestedConditions = Object.entries(conditions).flatMap(
+          ([field, value]) => {
+            if (
+              typeof value === 'object' &&
+              value !== null &&
+              !Array.isArray(value)
+            ) {
+              return this.parseNestedField(field, value)
+            }
+            return [this.parseConditionField(field, value)]
+          },
+        )
+
+        this.whereConditions.push({
+          field: '',
+          value: nestedConditions,
+          operator: logicalOperator,
+          isNested: true,
+          logicalOperator,
+          groupId,
+        })
+      }
     }
     return this
   }
@@ -295,6 +376,58 @@ export class QueryBuilder<
     return this.baseQueryBuilder.parseFieldAndOperator(field)
   }
 
+  private parseFilterCondition(
+    field: string,
+    value: any,
+  ): Condition | Condition[] {
+    const { key, operator } = this.parseFieldAndOperator(field)
+
+    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      const conditions: Condition[] = []
+
+      const processNestedObject = (obj: any, prefix: string) => {
+        Object.entries(obj).forEach(([key, val]) => {
+          const { key: fieldName, operator } = this.parseFieldAndOperator(key)
+          const fullField = prefix ? `${prefix}.${fieldName}` : fieldName
+          if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
+            processNestedObject(val, fullField)
+          } else {
+            let processedValue = val
+            if (operator === SqlOperators.LIKE) {
+              processedValue = `%${val}%`
+            } else if (operator === SqlOperators.IN) {
+              processedValue = Array.isArray(val) ? val : [val]
+            }
+
+            conditions.push({
+              field: fullField,
+              value: processedValue,
+              operator,
+              logicalOperator: LogicalOperators.AND,
+            })
+          }
+        })
+      }
+
+      processNestedObject(value, key)
+      return conditions
+    }
+
+    let processedValue = value
+    if (operator === SqlOperators.LIKE) {
+      processedValue = `%${value}%`
+    } else if (operator === SqlOperators.IN) {
+      processedValue = Array.isArray(value) ? value : [value]
+    }
+
+    return {
+      field: key,
+      value: processedValue,
+      operator,
+      logicalOperator: LogicalOperators.AND,
+    }
+  }
+
   public filter(
     conditions: WithOperators<Partial<T>> | Q<T>,
   ): QueryBuilder<T, M> {
@@ -307,8 +440,11 @@ export class QueryBuilder<
       })
     }
 
-    const newConditions = Object.entries(conditions).map(([field, value]) =>
-      this.parseFilterCondition(field, value),
+    const newConditions = Object.entries(conditions).flatMap(
+      ([field, value]) => {
+        const condition = this.parseFilterCondition(field, value)
+        return Array.isArray(condition) ? condition : [condition]
+      },
     )
 
     return this.clone({
@@ -336,16 +472,6 @@ export class QueryBuilder<
     return this.clone({
       excludeConditions: [...this.excludeConditions, ...newConditions],
     })
-  }
-
-  private parseFilterCondition(field: string, value: any): Condition {
-    const { key, operator } = this.parseFieldAndOperator(field)
-    return {
-      field: key,
-      value: operator === SqlOperators.LIKE ? `%${value}%` : value,
-      operator,
-      logicalOperator: LogicalOperators.AND,
-    }
   }
 
   private buildCondition(condition: Condition): string {
