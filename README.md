@@ -996,3 +996,158 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 [MIT License](LICENSE)
+
+### Array Fields and Nested Structures
+
+The ORM supports array fields and nested structures like arrays within tuples. Here's how to use them:
+
+#### Basic Array Fields
+
+```typescript
+class Product extends Model<ProductSchema> {
+  static fields = {
+    id: new NumberField({}),
+    tags: new ArrayField({
+      elementType: new StringField({ defaultValue: '' }),
+      defaultValue: ['new', 'featured'],
+    }),
+    prices: new ArrayField({
+      elementType: new NumberField({ defaultValue: 0 }),
+      defaultValue: [10, 20, 30],
+    }),
+  }
+}
+```
+
+#### Nested Arrays
+
+You can create arrays of arrays for more complex data structures:
+
+```typescript
+class Matrix extends Model<MatrixSchema> {
+  static fields = {
+    id: new NumberField({}),
+    data: new ArrayField({
+      elementType: new ArrayField({
+        elementType: new NumberField({ defaultValue: 0 }),
+        defaultValue: [],
+      }),
+      defaultValue: [[1, 2], [3, 4]],
+    }),
+  }
+}
+```
+
+#### Tuples with Arrays
+
+You can combine tuples and arrays for complex nested structures:
+
+```typescript
+class UserProfile extends Model<UserProfileSchema> {
+  static fields = {
+    id: new NumberField({}),
+    preferences: new TupleField({
+      fields: {
+        name: new StringField({ defaultValue: '' }),
+        favoriteNumbers: new ArrayField({
+          elementType: new NumberField({ defaultValue: 0 }),
+          defaultValue: [1, 2, 3],
+        }),
+      },
+    }),
+  }
+}
+```
+
+The above will generate a schema with a tuple field containing a string and an array of numbers:
+```sql
+Tuple(name String, favoriteNumbers Array(Int32))
+```
+
+#### Tuple Filtering
+
+You can filter on tuple fields using dot notation to access nested fields. Here are some examples:
+
+```typescript
+// Filter on a simple tuple field
+class AddressModel extends Model<AddressSchema> {
+  static fields = {
+    id: new NumberField({}),
+    address: new TupleField({
+      fields: {
+        street: new StringField({ defaultValue: '' }),
+        city: new StringField({ defaultValue: '' }),
+        zip: new NumberField({ defaultValue: 0 }),
+      },
+    }),
+  }
+}
+
+// Filter by city
+const query = addressModel.objects.filter({
+  'address.city': 'New York'
+})
+
+// Filter with comparison operators
+const query = addressModel.objects.filter({
+  address: {
+    zip__gt: 10000,
+  }
+})
+
+// Filter on nested tuples
+class LocationModel extends Model<LocationSchema> {
+  static fields = {
+    id: new NumberField({}),
+    location: new TupleField({
+      fields: {
+        coordinates: new TupleField({
+          fields: {
+            lat: new NumberField({ defaultValue: 0 }),
+            lon: new NumberField({ defaultValue: 0 }),
+          },
+        }),
+        name: new StringField({ defaultValue: '' }),
+      },
+    }),
+  }
+}
+
+// Filter on nested tuple fields
+const query = locationModel.objects.filter({
+  location: {
+    coordinates: {
+      lat__gt: 40.0,
+      lon__lt: -73.0
+    },
+  }
+})
+
+// Filter with multiple conditions
+const query = locationModel.objects.filter(
+  new Q<LocationSchema>().and([
+    { location: { coordinates: { lat__gt: 40.0 } } },
+    { location: { name__icontains: 'Central' } }
+  ])
+)
+```
+
+The above queries will generate SQL like:
+```sql
+-- Simple tuple filter
+SELECT * FROM address_model WHERE address.city = 'New York'
+
+-- Nested tuple filter
+SELECT * FROM location_model WHERE location.coordinates.lat > 40.0 AND location.coordinates.lon < -73.0
+```
+
+#### Default Values
+
+Array fields support default values at both the array and element level:
+
+```typescript
+new ArrayField({
+  elementType: new StringField({ defaultValue: 'default' }), // Element default
+  defaultValue: ['value1', 'value2'], // Array default
+})
+```

@@ -6,5 +6,6 @@ export class NumberField extends Field {
 
   constructor(options: NumberFieldOptions) {
     super(options)
+    this.type = options.type ?? NumberFieldTypes.Int32
   }
 }

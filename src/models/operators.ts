@@ -22,6 +22,7 @@ export enum SqlOperators {
   IN = 'IN',
   IS = 'IS',
   NULL = 'NULL',
+  HAS_ANY = 'HAS ANY',
 }
 
 /**
@@ -100,6 +101,15 @@ export enum FieldOperators {
    * ```
    */
   IN = '__in',
+
+  /**
+   * Has any of the values
+   * @example
+   * ```typescript
+   * { tags__has_any: ['python', 'typescript'] } // hasAny(tags, ['python', 'typescript'])
+   * ```
+   */
+  HAS_ANY = '__has_any',
 }
 
 /**
@@ -151,6 +161,7 @@ export const FIELD_TO_SQL_OPERATOR: Record<FieldOperators, SqlOperators> = {
   [FieldOperators.NE]: SqlOperators.NE,
   [FieldOperators.ICONTAINS]: SqlOperators.LIKE,
   [FieldOperators.IN]: SqlOperators.IN,
+  [FieldOperators.HAS_ANY]: SqlOperators.HAS_ANY,
 } as const
 
 /**

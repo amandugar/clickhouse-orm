@@ -2,14 +2,28 @@ import {
   StringFieldTypes,
   NumberFieldTypes,
   BooleanFieldTypes,
+  TupleFieldTypes,
+  ArrayFieldTypes,
+  TupleValue,
+  PrimitiveValue,
 } from './field-types'
 
 export interface BaseFieldOptions {
   expression?: string
-  defaultValue?: string | number | boolean
+  defaultValue?:
+    | string
+    | number
+    | boolean
+    | Record<string, TupleValue>
+    | PrimitiveValue[]
 }
 
-export type FieldType = StringFieldTypes | NumberFieldTypes | BooleanFieldTypes
+export type FieldType =
+  | StringFieldTypes
+  | NumberFieldTypes
+  | BooleanFieldTypes
+  | TupleFieldTypes
+  | ArrayFieldTypes
 
 export abstract class Field {
   protected name: string = ''
@@ -32,6 +46,27 @@ export abstract class Field {
   }
 
   public getType(): FieldType | undefined {
+    if (this.type === TupleFieldTypes.Tuple && 'fields' in this.options) {
+      const tupleOptions = this.options as {
+        fields: Record<string, Field>
+      }
+
+      const tupleType = `Tuple(${Object.values(tupleOptions.fields)
+        .map((field) => `${field.getName()} ${field.getType()}`)
+        .join(', ')})`
+
+      return tupleType as FieldType
+    }
+
+    if (this.type === ArrayFieldTypes.Array && 'elementType' in this.options) {
+      const arrayOptions = this.options as {
+        elementType: Field
+      }
+
+      const arrayType = `Array(${arrayOptions.elementType.getType()})`
+      return arrayType as FieldType
+    }
+
     return this.type
   }
 
@@ -45,9 +80,42 @@ export abstract class Field {
       : ''
   }
 
-  public getDefaultValueStatement(): string {
-    return this.options.defaultValue
-      ? `DEFAULT ${this.options.defaultValue}`
-      : ''
+  private _getDefaultValueStatement(
+    value:
+      | string
+      | number
+      | boolean
+      | Record<string, TupleValue>
+      | PrimitiveValue[],
+  ): string {
+    switch (typeof value) {
+      case 'string':
+        return `'${value}'`
+      case 'number':
+        return `${value}`
+      case 'boolean':
+        return `${value}`
+      case 'object':
+        if (Array.isArray(value)) {
+          return `[${value.map((v) => this._getDefaultValueStatement(v)).join(', ')}]`
+        }
+        return `(${Object.values(value)
+          .map((v) => this._getDefaultValueStatement(v))
+          .join(', ')})`
+    }
+  }
+
+  public getDefaultValue(): string | undefined {
+    const defaultValue = this.options.defaultValue
+    if (!defaultValue) return undefined
+
+    let defaultValueStatement = ''
+    if (Array.isArray(defaultValue)) {
+      defaultValueStatement = `[${defaultValue.map((v) => this._getDefaultValueStatement(v)).join(', ')}]`
+    } else {
+      defaultValueStatement = this._getDefaultValueStatement(defaultValue)
+    }
+
+    return defaultValueStatement
   }
 }

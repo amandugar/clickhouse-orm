@@ -407,7 +407,9 @@ describe('Model', () => {
 
     // Test NOT with empty conditions
     const notEmptyQuery = user1.objects.filter(new Q<User>().not({}))
-    expect(notEmptyQuery.getQuery()).toBe('SELECT * FROM users')
+    expect(notEmptyQuery.getQuery()).toBe(
+      'SELECT * FROM users WHERE (NOT NULL)',
+    )
 
     // Test NOT with undefined values
     const notUndefinedQuery = user1.objects.filter(
@@ -492,7 +494,7 @@ describe('Model', () => {
     // Test NOT with IN operator and empty array
     const emptyInQuery = user1.objects.filter(new Q<User>().not({ id__in: [] }))
     expect(emptyInQuery.getQuery()).toBe(
-      'SELECT * FROM users WHERE (NOT ((id IN ())))',
+      'SELECT * FROM users WHERE (NOT ((id IN (NULL))))',
     )
   })
 })

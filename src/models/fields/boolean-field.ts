@@ -6,5 +6,6 @@ export class BooleanField extends Field {
 
   constructor(options: BooleanFieldOptions) {
     super(options)
+    this.type = options.type ?? BooleanFieldTypes.Boolean
   }
 }
