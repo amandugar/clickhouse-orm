@@ -5,9 +5,8 @@ import {
   StringField,
   TupleField,
 } from '../models'
-import { FieldsOf, TableDefinition } from '../models/types/table-definition'
+import { TableDefinition } from '../models/types/table-definition'
 import { Q } from '../models/query-builder'
-import { FieldOperators, OperatorSuffix } from '../models/operators'
 
 type Name = {
   first?: string
