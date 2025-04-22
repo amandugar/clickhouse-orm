@@ -1,5 +1,17 @@
 import { Field } from './base-field'
 import { ArrayFieldTypes, ArrayFieldOptions, FieldType } from './field-types'
+import { BaseColumn } from '../column'
+import { ModelType } from '../model'
+
+export enum ArrayColumnTypes {
+  Array = 'Array',
+}
+
+export type ArrayColumn<T extends ModelType> = BaseColumn<T> & {
+  type: ArrayColumnTypes
+  elementType: Field
+  defaultValue?: T[]
+}
 
 export class ArrayField extends Field {
   protected type: FieldType = ArrayFieldTypes.Array

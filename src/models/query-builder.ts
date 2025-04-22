@@ -22,7 +22,7 @@
  */
 
 import { DataRetrival } from './data-retrival'
-import { Model } from './model'
+import { Model, ModelType } from './model'
 import { ConnectionConfig } from '../utils/database/connection-manager'
 import {
   FieldOperators,
@@ -32,6 +32,8 @@ import {
   SqlOperators,
   FIELD_TO_SQL_OPERATOR,
 } from './operators'
+import { Engine } from '../utils'
+import { ConnectionManager } from '../utils/database/connection-manager'
 
 /**
  * Represents a SQL or logical operator that can be used in query conditions
@@ -62,7 +64,7 @@ type Condition = {
  * Represents possible condition types that can be used in query building
  * Can be a Q instance, an object with operators, or an array of either
  */
-type Conditions<T extends Record<string, unknown>> =
+type Conditions<T extends ModelType> =
   | Q<T>
   | WithOperators<Partial<T>>
   | Array<Q<T> | WithOperators<Partial<T>>>
@@ -154,7 +156,7 @@ class BaseQueryBuilder {
  * Class for building complex query conditions using a fluent interface
  * Supports AND, OR, and NOT operations with nested conditions
  */
-export class Q<T extends Record<string, unknown>> extends BaseQueryBuilder {
+export class Q<T extends ModelType> extends BaseQueryBuilder {
   public whereConditions: Condition[] = []
   private groupCounter: number = 0
 
@@ -337,17 +339,21 @@ export class Q<T extends Record<string, unknown>> extends BaseQueryBuilder {
  * @template M - Type of the model's methods
  */
 export class QueryBuilder<
-  T extends Record<string, unknown>,
-  M extends Record<string, unknown>,
+  T extends ModelType,
+  M extends ModelType,
 > extends DataRetrival<T, M> {
   private readonly tableName: string
+  private readonly engine: Engine
   private readonly whereConditions: Condition[] = []
   private readonly excludeConditions: Condition[] = []
   private readonly _offset: number = 0
   private readonly _limit: number | undefined = undefined
-  private readonly _project: string = '*'
+  private _project: string = '*'
   private readonly connectionConfig?: ConnectionConfig
   private readonly baseQueryBuilder: BaseQueryBuilder
+  private _final: boolean = false
+  private _model: typeof Model<T, M>
+  private _sort: Record<keyof T, -1 | 1> | undefined = undefined
 
   /**
    * Creates a new QueryBuilder instance
@@ -365,8 +371,10 @@ export class QueryBuilder<
       connectionConfig?: ConnectionConfig
     } = {},
   ) {
-    super(model)
+    super(options.connectionConfig)
+    this._model = model
     this.tableName = model.tableDefinition.tableName
+    this.engine = model.tableDefinition.engine
     this.whereConditions = options.whereConditions || []
     this.excludeConditions = options.excludeConditions || []
     this._offset = options.offset || 0
@@ -384,7 +392,7 @@ export class QueryBuilder<
   private clone(
     options: Partial<ConstructorParameters<typeof QueryBuilder>[1]>,
   ): QueryBuilder<T, M> {
-    return new QueryBuilder(this.model, {
+    return new QueryBuilder(this._model, {
       whereConditions: this.whereConditions,
       excludeConditions: this.excludeConditions,
       offset: this._offset,
@@ -529,6 +537,13 @@ export class QueryBuilder<
     })
   }
 
+  public async count(): Promise<number> {
+    this._project = 'COUNT(*) as count'
+
+    const result = await this.all()
+    return Number(result[0].count)
+  }
+
   /**
    * Adds exclusion conditions to the query
    * @param conditions - The conditions to exclude
@@ -626,9 +641,21 @@ export class QueryBuilder<
     const conditions = [...this.whereConditions, ...this.excludeConditions]
     const whereClause = this.buildWhereClause(conditions)
 
-    return `SELECT ${this._project} FROM ${this.tableName}${
-      whereClause ? ` WHERE ${whereClause}` : ''
-    }${this._offset ? ` OFFSET ${this._offset}` : ''}${
+    const buildSort = () => {
+      if (!this._sort) return ''
+      return `ORDER BY ${Object.entries(this._sort)
+        .map(
+          ([field, direction]) =>
+            `${field} ${direction === -1 ? 'DESC' : 'ASC'}`,
+        )
+        .join(', ')}`
+    }
+
+    return `SELECT ${this._project} FROM ${this.tableName} ${
+      this._final ? `FINAL ` : ''
+    }${
+      whereClause ? `WHERE ${whereClause}` : ''
+    }${buildSort()}${this._offset ? ` OFFSET ${this._offset}` : ''}${
       this._limit ? ` LIMIT ${this._limit}` : ''
     }`
   }
@@ -641,13 +668,60 @@ export class QueryBuilder<
     return this.buildQuery()
   }
 
+  public final(): QueryBuilder<T, M> {
+    if (this.engine !== Engine.REPLACING_MERGE_TREE) {
+      throw new Error('Final is only supported for ReplacingMergeTree engine')
+    }
+
+    this._final = true
+    return this
+  }
+
+  public async first(): Promise<T> {
+    const results = await this.limit(1).all()
+    return results[0]
+  }
+
+  /**
+   * Deletes records matching the current query conditions
+   * @returns A boolean indicating whether the delete operation was successful
+   */
+  public async delete(): Promise<boolean> {
+    const conditions = [...this.whereConditions, ...this.excludeConditions]
+    const whereClause = this.buildWhereClause(conditions)
+
+    const query = `DELETE FROM ${this.tableName} ${
+      whereClause ? `WHERE ${whereClause}` : ''
+    }`
+
+    const connectionManager = ConnectionManager.getDefaultOrCreate(
+      this.connectionConfig,
+    )
+    try {
+      await connectionManager.with(async (client) => {
+        await client.exec({ query })
+      })
+      return true
+    } catch (error) {
+      return false
+    }
+  }
+
   /**
    * Resets the query builder to its initial state
    * @returns A new QueryBuilder instance with default settings
    */
   public reset(): QueryBuilder<T, M> {
-    return new QueryBuilder(this.model, {
+    return new QueryBuilder(this._model, {
       connectionConfig: this.connectionConfig,
     })
+  }
+
+  public sort(sortData: Partial<Record<keyof T, -1 | 1>>): QueryBuilder<T, M> {
+    this._sort = {
+      ...this._sort,
+      ...sortData,
+    }
+    return this
   }
 }

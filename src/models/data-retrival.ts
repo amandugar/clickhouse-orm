@@ -1,22 +1,22 @@
-import { ConnectionManager } from '../utils/database/connection-manager'
-import { Model } from './model'
+import {
+  ConnectionConfig,
+  ConnectionManager,
+} from '../utils/database/connection-manager'
+import { Model, ModelType } from './model'
 
-export abstract class DataRetrival<
-  T extends Record<string, unknown>,
-  M extends Record<string, unknown>,
-> {
+export abstract class DataRetrival<T extends ModelType, M extends ModelType> {
   abstract buildQuery(): string
   abstract getQuery(): string
-  model: typeof Model<T, M>
+  private _connectionConfig?: ConnectionConfig
 
-  constructor(model: typeof Model<T, M>) {
-    this.model = model
+  constructor(connectionConfig?: ConnectionConfig) {
+    this._connectionConfig = connectionConfig
   }
 
   public async *[Symbol.asyncIterator](): AsyncIterator<T> {
     this.buildQuery()
     const connectionManager = ConnectionManager.getDefaultOrCreate(
-      this.model.prototype.connectionConfig,
+      this._connectionConfig,
     )
     const withConnection = await connectionManager.with(async (client) => {
       return await client.query({

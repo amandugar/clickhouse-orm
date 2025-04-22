@@ -43,9 +43,10 @@ export interface BooleanFieldOptions extends BaseFieldOptions {
 export type PrimitiveValue = string | number | boolean | PrimitiveValue[]
 export type TupleValue = PrimitiveValue | { [key: string]: TupleValue }
 
-export interface TupleFieldOptions<
-  T extends Record<string, TupleValue> = Record<string, TupleValue>,
-> extends BaseFieldOptions {
+export type TupleType = Record<string, TupleValue>
+
+export interface TupleFieldOptions<T extends TupleType = TupleType>
+  extends BaseFieldOptions {
   defaultValue?: T
   type?: TupleFieldTypes
   fields: Record<string, Field>

@@ -1,15 +1,47 @@
 # Thunder Schema
 
-A TypeScript ORM (Object-Relational Mapping) library for ClickHouse, providing a simple and type-safe way to interact with ClickHouse databases.
+A TypeScript ORM for ClickHouse databases with type-safety at its core.
 
-## Features
+## Table of Contents
+1. [Introduction](#introduction)
+2. [Installation](#installation)
+3. [Core Concepts](#core-concepts)
+   - [Models](#models)
+   - [Fields](#fields)
+   - [Connection Management](#connection-management)
+4. [Getting Started](#getting-started)
+   - [Defining Models](#defining-models)
+   - [Database Configuration](#database-configuration)
+   - [Basic Operations](#basic-operations)
+5. [Querying Data](#querying-data)
+   - [Basic Queries](#basic-queries)
+   - [Query Methods](#query-methods)
+   - [Advanced Queries](#advanced-queries)
+   - [Query Operators](#query-operators)
+6. [Field Types & Options](#field-types--options)
+   - [Basic Field Types](#basic-field-types)
+   - [Common Options](#common-options)
+   - [Array Fields](#array-fields)
+   - [Tuple Fields](#tuple-fields)
+   - [Materialized Fields](#materialized-fields)
+7. [Migrations](#migrations)
+   - [Migration Overview](#migration-overview)
+   - [CLI Commands](#cli-commands)
+   - [Migration Types](#migration-types)
+   - [Migration Examples](#migration-examples)
+   - [Migration Workflow](#migration-workflow)
+   - [Environment Variables](#environment-variables)
+8. [Advanced Features](#advanced-features)
+   - [Connection Pooling](#connection-pooling)
+   - [Complex Data Structures](#complex-data-structures)
+   - [Query Building & Inspection](#query-building--inspection)
+9. [API Reference](#api-reference)
+10. [Contributing](#contributing)
+11. [License](#license)
 
-- Type-safe model definitions
-- Query builder for complex queries
-- Migration support
-- Connection management
-- Support for various ClickHouse table engines
-- TypeScript-first approach
+## Introduction
+
+Thunder Schema is a TypeScript ORM for ClickHouse that provides a simple and type-safe way to interact with ClickHouse databases. It features type-safe model definitions, a powerful query builder, migration support, connection management, and a TypeScript-first approach.
 
 ## Installation
 
@@ -19,81 +51,24 @@ npm install thunder-schema
 yarn add thunder-schema
 ```
 
-## Quick Start
+## Core Concepts
 
-### 1. Define Your Models
+### Models
 
-```typescript
-import { Model } from 'thunder-schema'
-import { FieldsOf, TableDefinition } from 'thunder-schema'
-import { NumberField, StringField } from 'thunder-schema'
+Models are the core building blocks in Thunder Schema. They represent tables in your ClickHouse database and provide a type-safe way to interact with your data. Each model has:
 
-type UserSchema = {
-  id: number
-  name: string
-  email: string
-  createdAt: number
-  updatedAt: number
-  deletedAt: number
-}
+- **Schema**: A TypeScript type defining the table structure
+- **Fields**: Field definitions with types and options
+- **Table Definition**: Configuration for the table including engine and indexes
 
-class User extends Model<UserSchema> {
-  static fields: FieldsOf<UserSchema> = {
-    id: new NumberField({}),
-    name: new StringField({}),
-    email: new StringField({}),
-    createdAt: new NumberField({}),
-    updatedAt: new NumberField({}),
-    deletedAt: new NumberField({}),
-  }
+### Fields
 
-  static tableDefinition: TableDefinition<UserSchema> = {
-    tableName: 'users',
-    engine: 'MergeTree',
-    orderBy: ['createdAt'],
-  }
-}
-```
+Fields define the properties of your models. Each field has a type (like StringField, NumberField) and options (like default values, nullable settings).
 
-### 2. Configure Database Connection
+### Connection Management
 
-```typescript
-import { ConnectionManager, ConnectionConfig } from 'thunder-schema'
+The ConnectionManager handles database connections and provides a centralized way to manage connection configuration. It supports multiple connections and connection pooling.
 
-const config: ConnectionConfig = {
-  credentials: {
-    url: 'http://localhost:8123',
-    username: 'default',
-    password: '',
-    database: 'default'
-  },
-  options: {
-    keepAlive: true
-  }
-}
-
-// Set as default connection
-ConnectionManager.setDefault(config)
-
-// Or get a specific instance
-const connectionManager = ConnectionManager.getInstance(config)
-```
-
-### 3. Using the Model
-
-```typescript
-// Create a new user
-const user = new User().create({
-  id: 1,
-  name: 'John Doe',
-  email: 'john@example.com',
-  createdAt: Date.now(),
-  updatedAt: Date.now(),
-  deletedAt: 0
-})
-
-await user.save()
-```
 
 ## Connection Management
 
@@ -193,32 +168,178 @@ try {
 }
 ```
 
-## Advanced Usage
 
-### Query Builder
+## Getting Started
+
+### Defining Models
 
 ```typescript
-import { QueryBuilder } from 'thunder-schema'
+import { Model } from 'thunder-schema'
+import { FieldsOf, TableDefinition } from 'thunder-schema'
+import { NumberField, StringField } from 'thunder-schema'
 
-const query = userModel.objects.filter(
-  new Q<User>().or([
-    { id: 1 },
-    { id: 2 }
-  ])
-)
+type UserSchema = {
+  id: number
+  name: string
+  email: string
+  createdAt: number
+  updatedAt: number
+  deletedAt: number
+}
 
-const results = await query.all()
+class User extends Model<UserSchema> {
+  static fields: FieldsOf<UserSchema> = {
+    id: new NumberField({}),
+    name: new StringField({}),
+    email: new StringField({}),
+    createdAt: new NumberField({}),
+    updatedAt: new NumberField({}),
+    deletedAt: new NumberField({}),
+  }
+
+  static tableDefinition: TableDefinition<UserSchema> = {
+    tableName: 'users',
+    engine: 'MergeTree',
+    orderBy: ['createdAt'],
+  }
+}
 ```
 
-### Nested Queries and Complex Conditions
+### Database Configuration
 
-The ORM supports complex nested queries using the `Q` class for building sophisticated conditions:
+```typescript
+import { ConnectionManager, ConnectionConfig } from 'thunder-schema'
+
+const config: ConnectionConfig = {
+  credentials: {
+    url: 'http://localhost:8123',
+    username: 'default',
+    password: '',
+    database: 'default'
+  },
+  options: {
+    keepAlive: true
+  }
+}
+
+// Set as default connection
+ConnectionManager.setDefault(config)
+
+// Or get a specific instance
+const connectionManager = ConnectionManager.getInstance(config)
+```
+
+### Basic Operations
+
+Creating and saving a new record:
+
+```typescript
+// Create a new user
+const user = new User().create({
+  id: 1,
+  name: 'John Doe',
+  email: 'john@example.com',
+  createdAt: Date.now(),
+  updatedAt: Date.now(),
+  deletedAt: 0
+})
+
+await user.save()
+```
+
+## Querying Data
+
+### Basic Queries
+
+```typescript
+// Get all users
+const allUsers = await User.objects.all()
+
+// Filter by field
+const activeUsers = await User.objects
+  .filter({ isActive: true })
+  .all()
+```
+
+### Query Methods
+
+#### Sorting Results
+
+```typescript
+// Sort by a single field
+const users = await User.objects
+  .sort({ createdAt: -1 }) // -1 for descending, 1 for ascending
+  .all()
+
+// Sort by multiple fields
+const users = await User.objects
+  .sort({
+    isActive: -1,  // Active users first
+    createdAt: 1   // Then by creation date ascending
+  })
+  .all()
+```
+
+#### Counting Results
+
+```typescript
+// Count all users
+const totalUsers = await User.objects.count()
+
+// Count with filters
+const activeUsers = await User.objects
+  .filter({ isActive: true })
+  .count()
+```
+
+#### Getting First Result
+
+```typescript
+// Get first user
+const firstUser = await User.objects.first()
+
+// Get first active user
+const firstActiveUser = await User.objects
+  .filter({ isActive: true })
+  .first()
+```
+
+#### Field Selection (Projection)
+
+```typescript
+// Select specific fields
+const users = await User.objects
+  .project(['id', 'name', 'email'])
+  .all()
+
+// Rename fields in the result
+const users = await User.objects
+  .project([
+    'id',
+    { name: 'fullName' },
+    { email: 'contactEmail' }
+  ])
+  .all()
+```
+
+#### Using FINAL Modifier
+
+```typescript
+// Get final versions of rows
+const finalUsers = await User.objects
+  .final()
+  .all()
+```
+
+### Advanced Queries
+
+#### Nested Queries and Complex Conditions
 
 ```typescript
 import { Q } from 'thunder-schema'
 
 // Simple OR conditions
-const query = userModel.objects.filter(
+const query = User.objects.filter(
   new Q<User>().or([
     { id: 1 },
     { id: 2 }
@@ -226,7 +347,7 @@ const query = userModel.objects.filter(
 )
 
 // Complex nested conditions
-const complexQuery = userModel.objects.filter(
+const complexQuery = User.objects.filter(
   new Q<User>().or([
     new Q<User>().and([{ id: 1 }, { name: 'John' }]),
     new Q<User>().not(
@@ -234,24 +355,40 @@ const complexQuery = userModel.objects.filter(
     )
   ])
 )
-
-// The above generates SQL like:
-// SELECT * FROM users WHERE ((id = 1 AND name = 'John') OR (NOT (id = 2 OR email = 'test@test.com')))
 ```
 
-### Async Iteration and Streaming
+#### Excluding Records
 
-The ORM supports async iteration for efficient data streaming:
+```typescript
+// Exclude specific records
+const activeUsers = await User.objects
+  .exclude({ isActive: false })
+  .all()
+
+// Complex exclusion conditions
+const validUsers = await User.objects
+  .exclude(
+    new Q<User>().or([
+      { email: null },
+      { name: '' }
+    ])
+  )
+  .all()
+```
+
+#### Async Iteration and Streaming
+
+The ORM supports async iteration and streaming of results.
 
 ```typescript
 // Using async iteration
-const query = userModel.objects.filter({ isActive: true })
+const userInstance = new User()
+const query = userInstance.objects.filter({ isActive: true })
 for await (const user of query) {
   console.log(user)
 }
 
-// Converting to array
-const allUsers = await userModel.objects.all()
+/const allUsers = await userModel.objects.all()
 
 // Combining with nested queries
 const complexQuery = userModel.objects.filter(
@@ -267,35 +404,6 @@ for await (const user of complexQuery) {
 }
 ```
 
-### Using .all() Method
-
-The `.all()` method is a convenient way to fetch all results of a query as an array:
-
-```typescript
-// Basic usage
-const allUsers = await userModel.objects.all()
-
-// With filters
-const activeUsers = await userModel.objects
-  .filter({ isActive: true })
-  .all()
-
-// With complex queries
-const specificUsers = await userModel.objects
-  .filter(
-    new Q<User>().or([
-      { id: 1 },
-      { id: 2 }
-    ])
-  )
-  .all()
-
-// With pagination
-const paginatedUsers = await userModel.objects
-  .offset(10)
-  .limit(20)
-  .all()
-```
 
 ### In-Place Updates
 
@@ -328,11 +436,126 @@ Object.assign(user.values, {
 })
 
 await user.save()
+
+
+### Query Operators
+
+#### Comparison Operators
+
+```typescript
+// Greater than
+{ age__gt: 18 } // age > 18
+
+// Less than
+{ age__lt: 65 } // age < 65
+
+// Greater than or equal
+{ age__gte: 18 } // age >= 18
+
+// Less than or equal
+{ age__lte: 65 } // age <= 65
+
+// Not equal
+{ status__ne: 'inactive' } // status != 'inactive'
+```
+
+#### String Operators
+
+```typescript
+// Case-insensitive contains
+{ name__icontains: 'john' } // name LIKE '%john%'
+```
+
+#### Set Operators
+
+```typescript
+// In set
+{ status__in: ['active', 'pending'] } // status IN ('active', 'pending')
+```
+
+## Field Types & Options
+
+### Basic Field Types
+
+1. **NumberField**: For numeric values
+   ```typescript
+   new NumberField({
+     defaultValue: 0,
+     nullable: false
+   })
+   ```
+
+2. **StringField**: For text values
+   ```typescript
+   new StringField({
+     defaultValue: '',
+     nullable: true,
+     maxLength: 255
+   })
+   ```
+
+3. **BooleanField**: For true/false values
+   ```typescript
+   new BooleanField({
+     defaultValue: false
+   })
+   ```
+
+4. **DateTimeField**: For date and time values
+   ```typescript
+   new DateTimeField({
+     defaultValue: 'now()',
+     timezone: 'UTC'
+   })
+   ```
+
+### Common Options
+
+All field types support these options:
+
+- `defaultValue`: Default value for the field
+- `nullable`: Whether the field can be null
+- `expression`: SQL expression for computed fields
+- `materialized`: Whether the field is materialized
+
+### Array Fields
+
+```typescript
+class Product extends Model<ProductSchema> {
+  static fields = {
+    id: new NumberField({}),
+    tags: new ArrayField({
+      elementType: new StringField({ defaultValue: '' }),
+      defaultValue: ['new', 'featured'],
+    }),
+    prices: new ArrayField({
+      elementType: new NumberField({ defaultValue: 0 }),
+      defaultValue: [10, 20, 30],
+    }),
+  }
+}
+```
+
+### Tuple Fields
+
+```typescript
+class UserProfile extends Model<UserProfileSchema> {
+  static fields = {
+    id: new NumberField({}),
+    preferences: new TupleField({
+      fields: {
+        name: new StringField({ defaultValue: '' }),
+        favoriteNumbers: new ArrayField({
+          elementType: new NumberField({ defaultValue: 0 }),
+          defaultValue: [1, 2, 3],
+        }),
+      },
+    }),
+  }
+}
 ```
 
 ### Materialized Fields
-
-Materialized fields are computed columns that are stored in the table and automatically updated when their source columns change. They are defined using expressions:
 
 ```typescript
 type UserMaterialized = {
@@ -349,139 +572,48 @@ class User extends Model<User, UserMaterialized> {
       expression: "concat(name, ' ', email)"
     })
   }
-
-  static tableDefinition: TableDefinition<User> = {
-    tableName: 'users',
-    engine: 'MergeTree',
-    orderBy: ['id']
-  }
 }
-
-// When you create a user, the userName field is automatically computed
-const user = new User().create({
-  id: 1,
-  name: 'John Doe',
-  email: 'john@example.com'
-})
-
-await user.save()
-
-// The userName field will be available in queries
-const users = await User.objects.all()
-console.log(users[0].userName) // "John Doe john@example.com"
 ```
 
-### Default Values
+## Migrations
 
-You can specify default values for fields that will be used when creating new records:
+### Migration Overview
 
-```typescript
-class User extends Model<User> {
-  static fields: FieldsOf<User> = {
-    id: new NumberField({ type: NumberFieldTypes.Int32 }),
-    name: new StringField({ type: StringFieldTypes.String }),
-    email: new StringField({ type: StringFieldTypes.String }),
-    // Field with default value
-    isActive: new BooleanField({ 
-      defaultValue: true 
-    }),
-    // Field with default timestamp
-    createdAt: new NumberField({ 
-      type: NumberFieldTypes.Int64,
-      defaultValue: Date.now() 
-    })
-  }
+Thunder Schema provides a robust migration system to manage database schema changes. The migration system helps you version control your database schema and apply changes in a controlled manner.
 
-  static tableDefinition: TableDefinition<User> = {
-    tableName: 'users',
-    engine: 'MergeTree',
-    orderBy: ['id']
-  }
-}
+### CLI Commands
 
-// When creating a user without specifying isActive or createdAt
-const user = new User().create({
-  id: 1,
-  name: 'John Doe',
-  email: 'john@example.com'
-})
-
-// The default values will be used
-console.log(user.values.isActive) // true
-console.log(user.values.createdAt) // current timestamp
-```
-
-## CLI Usage
-
-The package provides a CLI tool called `thunder-schema` for managing migrations and database operations. Here are the available commands:
-
-### Generate Migrations
-
-Generate migration files from your model definitions:
+#### Generate Migrations
 
 ```bash
 npx thunder-schema makemigrations <model-path> [output-path]
 ```
 
-- `model-path`: Path to your model files (default: './models')
-- `output-path`: Path where migrations will be generated (default: './migrations')
-
-Example:
-```bash
-npx thunder-schema makemigrations ./src/models ./migrations
-```
-
-### List Migrations
-
-View all available migrations:
+#### List Migrations
 
 ```bash
 npx thunder-schema readmigrations [migrations-path]
 ```
 
-- `migrations-path`: Path to your migrations directory (default: './migrations')
-
-Example:
-```bash
-npx thunder-schema readmigrations ./migrations
-```
-
-### Apply Migrations
-
-Apply pending migrations to your database:
+#### Apply Migrations
 
 ```bash
 npx thunder-schema migrate [migrations-path]
 ```
 
-- `migrations-path`: Path to your migrations directory (default: './migrations')
+### Migration Types
 
-Example:
-```bash
-npx thunder-schema migrate ./migrations
-```
+The migration system supports several types of schema changes:
 
-### Environment Variables
+1. **CREATE**: Creating new tables
+2. **UPDATE**: Modifying existing tables by:
+   - Adding new columns
+   - Removing columns
+   - Updating column definitions
+3. **DROP**: Dropping tables
 
-The CLI tool uses the following environment variables for database connection:
-Thunder Schema provides a robust migration system to manage your database schema changes. The 
-migration system helps you version control your database schema and apply changes in a 
-controlled manner.
-- `CLICKHOUSE_URL`: ClickHouse server URL (default: 'http://localhost:8123')
-- `CLICKHOUSE_USERNAME`: ClickHouse username (default: 'default')
-- `CLICKHOUSE_PASSWORD`: ClickHouse password (default: '')
-- `CLICKHOUSE_DATABASE`: ClickHouse database name (default: 'default')
 
-Example:
-```bash
-export CLICKHOUSE_URL=http://localhost:8123
-export CLICKHOUSE_USERNAME=default
-export CLICKHOUSE_PASSWORD=password
-export CLICKHOUSE_DATABASE=my_database
-npx thunder-schema migrate
-```
-
-## Migration Examples
+#### Migration File Examples
 
 Here are some examples of how to use migrations in your project:
 
@@ -549,23 +681,16 @@ const models: (typeof Model<any, any>)[] = [User, Post]
 export default models
 ```
 
-### Migration Types
+### Migration Examples
 
-The migration system supports several types of schema changes:
+Here are examples of different migration scenarios and their corresponding TypeScript migration files:
 
-1. **CREATE**: Creating new tables
-2. **UPDATE**: Modifying existing tables by:
-   - Adding new columns
-   - Removing columns
-   - Updating column definitions
-3. **DROP**: Dropping tables
+#### 1. Creating a New Table
 
-### Example Migration Diffs
+When you first define a model, the migration system will generate a migration to create the corresponding table:
 
-Here are examples of what different types of migration diffs look like:
-
-1. **Creating a new table**:
 ```typescript
+// Migration file: 1678901234567-create_users_table.ts
 export const diff = [
   {
     changes: {
@@ -576,7 +701,9 @@ export const diff = [
           { name: 'id', type: 'Int32' },
           { name: 'name', type: 'String' },
           { name: 'email', type: 'String' },
-          { name: 'createdAt', type: 'Int64', defaultValue: 'now()' }
+          { name: 'createdAt', type: 'Int64', defaultValue: 'now()' },
+          { name: 'updatedAt', type: 'Int64' },
+          { name: 'deletedAt', type: 'Int64' }
         ],
         engine: 'MergeTree',
         orderBy: ['createdAt']
@@ -586,8 +713,12 @@ export const diff = [
 ]
 ```
 
-2. **Adding new columns**:
+#### 2. Adding New Columns
+
+When you add new fields to your model, the migration system will generate a migration to add them to your table:
+
 ```typescript
+// Migration file: 1678901245678-add_user_fields.ts
 export const diff = [
   {
     changes: {
@@ -602,8 +733,12 @@ export const diff = [
 ]
 ```
 
-3. **Removing columns**:
+#### 3. Removing Columns
+
+When you remove fields from your model, the migration system generates a migration to remove them from your table:
+
 ```typescript
+// Migration file: 1678901256789-remove_user_fields.ts
 export const diff = [
   {
     changes: {
@@ -615,8 +750,12 @@ export const diff = [
 ]
 ```
 
-4. **Updating column definitions**:
+#### 4. Updating Column Definitions
+
+When you change a field's properties (like type or default value), the migration system generates a migration to update the column definition:
+
 ```typescript
+// Migration file: 1678901267890-update_email_field.ts
 export const diff = [
   {
     changes: {
@@ -634,8 +773,48 @@ export const diff = [
 ]
 ```
 
-5. **Dropping a table**:
+#### 5. Creating a Table with Advanced Features
+
+Here's an example of a more complex table creation with materialized columns, default values, and partitioning:
+
 ```typescript
+// Migration file: 1678901278901-create_orders_table.ts
+export const diff = [
+  {
+    changes: {
+      type: 'CREATE',
+      schema: {
+        tableName: 'orders',
+        columns: [
+          { name: 'id', type: 'String' },
+          { name: 'userId', type: 'String' },
+          { name: 'productId', type: 'String' },
+          { name: 'quantity', type: 'Int32', defaultValue: '1' },
+          { name: 'price', type: 'Decimal(10, 2)' },
+          { 
+            name: 'totalPrice', 
+            type: 'Decimal(10, 2)', 
+            expression: 'quantity * price' 
+          },
+          { name: 'orderDate', type: 'DateTime', defaultValue: 'now()' },
+          { name: 'status', type: 'String', defaultValue: "'pending'" }
+        ],
+        engine: 'MergeTree',
+        orderBy: ['orderDate'],
+        partitionBy: 'toYYYYMM(orderDate)',
+        primaryKey: ['id']
+      }
+    }
+  }
+]
+```
+
+#### 6. Dropping a Table
+
+When you remove a model altogether, the migration system can generate a migration to drop the table:
+
+```typescript
+// Migration file: 1678901289012-drop_old_table.ts
 export const diff = [
   {
     changes: {
@@ -648,22 +827,43 @@ export const diff = [
 ]
 ```
 
-6. **Complex changes** (multiple operations in one migration):
+#### 7. Complex Multi-Table Migration
+
+You can also have migrations that affect multiple tables in one go:
+
 ```typescript
+// Migration file: 1678901299123-complex_migration.ts
 export const diff = [
   {
+    // Create a new table
+    changes: {
+      type: 'CREATE',
+      schema: {
+        tableName: 'products',
+        columns: [
+          { name: 'id', type: 'String' },
+          { name: 'name', type: 'String' },
+          { name: 'price', type: 'Decimal(10, 2)' },
+          { name: 'createdAt', type: 'DateTime', defaultValue: 'now()' }
+        ],
+        engine: 'MergeTree',
+        orderBy: ['id']
+      }
+    }
+  },
+  {
+    // Update an existing table
     changes: {
       type: 'UPDATE',
-      tableName: 'users',
+      tableName: 'orders',
       add: [
-        { name: 'lastLogin', type: 'DateTime' }
+        { name: 'discountCode', type: 'String', nullable: true }
       ],
-      remove: ['lastActive'],
       update: [
         { 
-          name: 'status', 
-          type: 'String', 
-          defaultValue: "'active'" 
+          name: 'totalPrice', 
+          type: 'Decimal(10, 2)', 
+          expression: 'price * quantity * (1 - if(discountCode != \'\', 0.1, 0))' 
         }
       ]
     }
@@ -671,207 +871,50 @@ export const diff = [
 ]
 ```
 
-The migration system automatically generates these diffs based on the changes in your model definitions. Each diff is stored in a separate migration file with a timestamp prefix (e.g., `1678901234567-migration.ts`).
-
-### Example Migration Workflow
+### Migration Workflow
 
 1. Define your initial models
 2. Generate the first migration:
 ```bash
-npx thunder-schema makemigrations -- src/models.ts
+npx thunder-schema makemigrations -m src/models.ts -o migrations
 ```
-
 3. Apply the migration:
 ```bash
-npx thunder-schema migrate
+npx thunder-schema migrate --migrations-path migrations
 ```
 4. When you need to make changes to your schema:
    - Update your model definitions
-   - Generate a new migration:
-```bash
-npx thunder-schema makemigrations -- src/models.ts
-```
-   - Apply the new migration:
-```bash
-npx thunder-schema migrate
-```
-
-### Viewing Migrations
-
-You can view your existing migrations using:
-
-```bash
-npm run readmigrations
-```
-
-### Migration Features
-
-The migration system supports:
-
-1. **Materialized Columns**: Computed columns that are stored in the table
-2. **Default Values**: Automatic value assignment for new records
-3. **Table Engine Configuration**: Support for various ClickHouse table engines
-4. **Order By Clauses**: Define sorting order for MergeTree tables
-5. **Partitioning**: Support for table partitioning
-
-Example with advanced features:
-
-```typescript
-class User extends Model<UserSchema> {
-  static fields: FieldsOf<UserSchema> = {
-    id: new NumberField({}),
-    name: new StringField({}),
-    // Materialized column
-    fullName: new StringField({
-      expression: "concat(name, ' ', lastName)"
-    }),
-    // Column with default value
-    createdAt: new NumberField({
-      defaultValue: Date.now()
-    })
-  }
-
-  static tableDefinition: TableDefinition<UserSchema> = {
-    tableName: 'users',
-    engine: 'MergeTree',
-    orderBy: ['createdAt'],
-    partitionBy: 'toYYYYMM(createdAt)',
-    primaryKey: ['id']
-  }
-}
-```
+   - Generate a new migration
+   - Apply the new migration
 
 The migration system automatically tracks which migrations have been applied using a `migrations` table in your database and ensures migrations are applied in the correct order.
 
-## Advanced Query Building
+### Environment Variables
 
-### Projection and Field Selection
+The CLI tool uses the following environment variables for database connection:
 
-You can select specific fields using the `project()` method:
+- `CLICKHOUSE_URL`: ClickHouse server URL (default: 'http://localhost:8123')
+- `CLICKHOUSE_USERNAME`: ClickHouse username (default: 'default')
+- `CLICKHOUSE_PASSWORD`: ClickHouse password (default: '')
+- `CLICKHOUSE_DATABASE`: ClickHouse database name (default: 'default')
 
-```typescript
-// Select specific fields
-const users = await User.objects
-  .project(['id', 'name', 'email'])
-  .all()
-
-// Rename fields in the result
-const users = await User.objects
-  .project([
-    'id',
-    { name: 'fullName' },
-    { email: 'contactEmail' }
-  ])
-  .all()
+Example:
+```bash
+export CLICKHOUSE_URL=http://localhost:8123
+export CLICKHOUSE_USERNAME=default
+export CLICKHOUSE_PASSWORD=password
+export CLICKHOUSE_DATABASE=my_database
+npx thunder-schema migrate
 ```
 
-### Excluding Records
-
-The `exclude()` method allows you to filter out records that match certain conditions:
-
-```typescript
-// Exclude specific records
-const activeUsers = await User.objects
-  .exclude({ isActive: false })
-  .all()
-
-// Complex exclusion conditions
-const validUsers = await User.objects
-  .exclude(
-    new Q<User>().or([
-      { email: null },
-      { name: '' }
-    ])
-  )
-  .all()
+See more about it by running:
+```bash
+npx thunder-schema --help
 ```
 
-### Query Inspection and Debugging
-
-You can inspect the generated SQL query:
-
-```typescript
-const query = User.objects
-  .filter({ isActive: true })
-  .project(['id', 'name'])
-  .getQuery()
-
-console.log(query) // SELECT id, name FROM users WHERE (isActive = true)
-```
-
-### Resetting Queries
-
-The `reset()` method clears all query conditions:
-
-```typescript
-const query = User.objects
-  .filter({ isActive: true })
-  .project(['id', 'name'])
-
-// Clear all conditions
-query.reset()
-
-// Now query is back to SELECT * FROM users
-```
-
-## Field Types and Options
-
-### Available Field Types
-
-1. **NumberField**: For numeric values
-   ```typescript
-   new NumberField({
-     defaultValue: 0,
-     nullable: false
-   })
-   ```
-
-2. **StringField**: For text values
-   ```typescript
-   new StringField({
-     defaultValue: '',
-     nullable: true,
-     maxLength: 255
-   })
-   ```
-
-3. **BooleanField**: For true/false values
-   ```typescript
-   new BooleanField({
-     defaultValue: false
-   })
-   ```
-
-4. **DateTimeField**: For date and time values
-   ```typescript
-   new DateTimeField({
-     defaultValue: 'now()',
-     timezone: 'UTC'
-   })
-   ```
-
-5. **ArrayField**: For array values
-   ```typescript
-   new ArrayField({
-     elementType: 'String',
-     defaultValue: []
-   })
-   ```
-
-### Field Options
-
-All field types support the following options:
-
-- `defaultValue`: Default value for the field
-- `nullable`: Whether the field can be null
-- `expression`: SQL expression for computed fields
-- `materialized`: Whether the field is materialized
-
-## Advanced Connection Management
+## Advanced Features
 
 ### Connection Pooling
-
-The `ConnectionManager` implements connection pooling for better performance:
 
 ```typescript
 const config: ConnectionConfig = {
@@ -887,148 +930,56 @@ const config: ConnectionConfig = {
 }
 ```
 
-## Query Operators
 
-The query builder supports various operators for building complex queries. Here's how to use them:
+### Complex Data Structures
 
-### Comparison Operators
+#### Nested Arrays
 
 ```typescript
-// Greater than
-{ age__gt: 18 } // age > 18
-
-// Less than
-{ age__lt: 65 } // age < 65
-
-// Greater than or equal
-{ age__gte: 18 } // age >= 18
-
-// Less than or equal
-{ age__lte: 65 } // age <= 65
-
-// Not equal
-{ status__ne: 'inactive' } // status != 'inactive'
+class Matrix extends Model<MatrixSchema> {
+  static fields = {
+    id: new NumberField({}),
+    data: new ArrayField({
+      elementType: new ArrayField({
+        elementType: new NumberField({ defaultValue: 0 }),
+        defaultValue: [],
+      }),
+      defaultValue: [[1, 2], [3, 4]],
+    }),
+  }
+}
 ```
 
-### String Operators
+#### Tuple Filtering
 
 ```typescript
-// Case-insensitive contains
-{ name__icontains: 'john' } // name LIKE '%john%'
-```
-
-### Set Operators
-
-```typescript
-// In set
-{ status__in: ['active', 'pending'] } // status IN ('active', 'pending')
-```
-
-### Logical Operators
-
-```typescript
-// AND operator
-new Q().and([
-  { age__gt: 18 },
-  { status: 'active' }
-])
-// (age > 18 AND status = 'active')
-
-// OR operator
-new Q().or([
-  { status: 'active' },
-  { status: 'pending' }
-])
-// (status = 'active' OR status = 'pending')
-
-// NOT operator
-new Q().not({ status: 'inactive' })
-// NOT (status = 'inactive')
-```
-
-### Complex Queries
-
-You can combine operators to create complex queries:
-
-```typescript
-// Nested conditions with AND and OR
-new Q().and([
-  { age__gt: 18 },
-  new Q().or([
-    { status: 'active' },
-    { status: 'pending' }
-  ])
-])
-// (age > 18 AND (status = 'active' OR status = 'pending'))
-
-// Multiple conditions with NOT
-new Q().not({
-  age__gt: 18,
-  status__in: ['active', 'pending']
+// Filter on nested tuple fields
+const query = locationModel.objects.filter({
+  location: {
+    coordinates: {
+      lat__gt: 40.0,
+      lon__lt: -73.0
+    },
+  }
 })
-// NOT (age > 18 AND status IN ('active', 'pending'))
-
-// Complex string matching
-new Q().and([
-  { name__icontains: 'john' },
-  { email__icontains: 'example.com' }
-])
-// (name LIKE '%john%' AND email LIKE '%example.com%')
 ```
 
-### Edge Cases
+### Query Building & Inspection
 
 ```typescript
-// Empty conditions
-new Q().not({}) // No conditions
+// Inspect the generated SQL query
+const query = User.objects
+  .filter({ isActive: true })
+  .project(['id', 'name'])
+  .getQuery()
 
-// Null values
-new Q().not({ name: undefined }) // NOT (name = NULL)
+console.log(query) // SELECT id, name FROM users WHERE (isActive = true)
 
-// Boolean values
-new Q().not({ isActive: true }) // NOT (isActive = true)
-
-// Multiple NOT operations
-new Q().not(new Q().not({ id: 1 })) // NOT (NOT (id = 1))
-
-// Empty arrays in IN operator
-new Q().not({ id__in: [] }) // NOT (id IN ())
+// Reset query conditions
+query.reset()
 ```
 
-## API Reference
-
-### Models
-
-- `Model`: Base class for all models
-- `NumberField`: Field type for numeric values
-- `StringField`: Field type for string values
-- `TableDefinition`: Interface for table configuration
-
-### Database
-
-- `ConnectionManager`: Manages database connections
-- `ConnectionConfig`: Type for connection configuration
-- `ConnectionCredentials`: Type for connection credentials
-
-### Query Building
-
-- `QueryBuilder`: Build complex SQL queries
-- `Q`: Class for building query conditions
-
-### Migrations
-
-- `MigrationService`: Create and manage migrations
-- `MigrationRunner`: Execute migrations
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-[MIT License](LICENSE)
-
-### Array Fields and Nested Structures
+## Array Fields and Nested Structures
 
 The ORM supports array fields and nested structures like arrays within tuples. Here's how to use them:
 
@@ -1182,3 +1133,36 @@ new ArrayField({
   defaultValue: ['value1', 'value2'], // Array default
 })
 ```
+
+## API Reference
+
+### Models
+
+- `Model`: Base class for all models
+- `NumberField`: Field type for numeric values
+- `StringField`: Field type for string values
+- `TableDefinition`: Interface for table configuration
+
+### Database
+
+- `ConnectionManager`: Manages database connections
+- `ConnectionConfig`: Type for connection configuration
+- `ConnectionCredentials`: Type for connection credentials
+
+### Query Building
+
+- `QueryBuilder`: Build complex SQL queries
+- `Q`: Class for building query conditions
+
+### Migrations
+
+- `MigrationService`: Create and manage migrations
+- `MigrationRunner`: Execute migrations
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+[MIT License](LICENSE)

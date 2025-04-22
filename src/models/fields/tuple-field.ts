@@ -1,8 +1,20 @@
 import { FieldsOf } from '../types'
 import { Field } from './base-field'
-import { TupleFieldOptions, TupleFieldTypes } from './field-types'
+import { TupleFieldOptions, TupleFieldTypes, TupleType } from './field-types'
+import { ModelType } from '../model'
+import { BaseColumn } from '../column'
 
-export class TupleField<T extends Record<string, any>> extends Field {
+export enum TupleColumnTypes {
+  Tuple = 'Tuple',
+}
+
+export type TupleColumn<T extends ModelType> = BaseColumn<T> & {
+  type: TupleColumnTypes
+  fields: Record<string, Field>
+  defaultValue?: T
+}
+
+export class TupleField<T extends TupleType> extends Field {
   protected type: TupleFieldTypes = TupleFieldTypes.Tuple
   protected options: TupleFieldOptions<T>
 
