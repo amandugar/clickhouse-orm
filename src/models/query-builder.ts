@@ -1,3 +1,26 @@
+/**
+ * @fileoverview Query builder implementation for ClickHouse ORM
+ *
+ * This module provides a flexible and type-safe query builder for constructing
+ * ClickHouse SQL queries. It supports:
+ * - Complex filtering with AND/OR/NOT conditions
+ * - Nested field queries
+ * - Field projections
+ * - Pagination (offset/limit)
+ * - Type-safe field operations
+ *
+ * @example
+ * ```typescript
+ * const query = new QueryBuilder(UserModel)
+ *   .filter({ name__contains: 'John', age__gt: 18 })
+ *   .exclude({ status: 'inactive' })
+ *   .limit(10)
+ *   .offset(0);
+ * ```
+ *
+ * @module query-builder
+ */
+
 import { DataRetrival } from './data-retrival'
 import { Model } from './model'
 import { ConnectionConfig } from '../utils/database/connection-manager'
@@ -10,8 +33,21 @@ import {
   FIELD_TO_SQL_OPERATOR,
 } from './operators'
 
+/**
+ * Represents a SQL or logical operator that can be used in query conditions
+ */
 type Operator = SqlOperators | LogicalOperators
 
+/**
+ * Represents a single condition in a WHERE clause
+ * @property field - The database field name
+ * @property operator - The operator to use for comparison
+ * @property value - The value to compare against
+ * @property logicalOperator - The logical operator (AND/OR/NOT) to combine with other conditions
+ * @property groupId - Optional group identifier for grouping conditions
+ * @property isNested - Whether this condition contains nested conditions
+ * @property parentOperator - The logical operator of the parent condition if nested
+ */
 type Condition = {
   field: string
   operator: Operator
@@ -22,11 +58,19 @@ type Condition = {
   parentOperator?: LogicalOperator
 }
 
+/**
+ * Represents possible condition types that can be used in query building
+ * Can be a Q instance, an object with operators, or an array of either
+ */
 type Conditions<T extends Record<string, unknown>> =
   | Q<T>
   | WithOperators<Partial<T>>
   | Array<Q<T> | WithOperators<Partial<T>>>
 
+/**
+ * Type that allows field names to be suffixed with operator names
+ * Enables syntax like { name__contains: 'John' } for LIKE queries
+ */
 type WithOperators<T> = {
   [K in keyof T as K extends string ? K | `${K}${OperatorSuffix}` : never]:
     | Partial<T[K]>
@@ -34,7 +78,16 @@ type WithOperators<T> = {
     | Partial<T[K]>[]
 }
 
+/**
+ * Base class providing common query building functionality
+ * Handles parsing field names and operators, and formatting values
+ */
 class BaseQueryBuilder {
+  /**
+   * Parses a field name that may contain an operator suffix
+   * @param field - Field name with optional operator suffix (e.g. "name__contains")
+   * @returns Object containing the base field name and corresponding SQL operator
+   */
   public parseFieldAndOperator(field: string): {
     key: string
     operator: SqlOperators
@@ -47,11 +100,17 @@ class BaseQueryBuilder {
     return { key: fieldName, operator }
   }
 
+  /**
+   * Builds a basic SQL condition string from a Condition object
+   * Handles special cases like IN, HAS_ANY, and NULL values
+   * @param condition - The condition to convert to SQL
+   * @returns SQL condition string
+   */
   public buildBaseCondition(condition: Condition): string {
     if (condition.operator === SqlOperators.IN) {
       const values = Array.isArray(condition.value)
         ? condition.value.length === 0
-          ? '(NULL)' // Changed from '()' to '(NULL)' to handle empty array case
+          ? '(NULL)' // Handle empty array case
           : `('${condition.value.join("', '")}')`
         : condition.value
       return `${condition.field} IN ${values}`
@@ -73,22 +132,38 @@ class BaseQueryBuilder {
     return `${condition.field} ${condition.operator} ${this.formatValue(condition.value)}`
   }
 
+  /**
+   * Formats a value for use in SQL queries
+   * Handles strings, arrays, null/undefined, and other types
+   * @param value - The value to format
+   * @returns SQL-formatted value string
+   */
   protected formatValue(value: any): string {
     if (value === undefined || value === null) return 'NULL'
     if (typeof value === 'string') return `'${value}'`
     if (Array.isArray(value)) {
       return value.length === 0
-        ? '(NULL)' // Changed from '()' to '(NULL)'
+        ? '(NULL)' // Handle empty array case
         : `('${value.join("', '")}')`
     }
     return String(value)
   }
 }
 
+/**
+ * Class for building complex query conditions using a fluent interface
+ * Supports AND, OR, and NOT operations with nested conditions
+ */
 export class Q<T extends Record<string, unknown>> extends BaseQueryBuilder {
   public whereConditions: Condition[] = []
   private groupCounter: number = 0
 
+  /**
+   * Parses nested object conditions into a flat array of conditions
+   * @param field - The base field name
+   * @param value - The nested object containing conditions
+   * @returns Array of parsed conditions
+   */
   private parseNestedField(field: string, value: any): Condition[] {
     const processNestedObject = (obj: any, prefix: string): Condition[] => {
       const conditions: Condition[] = []
@@ -141,6 +216,12 @@ export class Q<T extends Record<string, unknown>> extends BaseQueryBuilder {
     return []
   }
 
+  /**
+   * Parses a single field condition
+   * @param field - The field name with optional operator suffix
+   * @param value - The value to compare against
+   * @returns A Condition object
+   */
   private parseConditionField(field: string, value: any): Condition {
     const { key, operator } = this.parseFieldAndOperator(field)
     const processedValue = operator === SqlOperators.LIKE ? `%${value}%` : value
@@ -154,6 +235,13 @@ export class Q<T extends Record<string, unknown>> extends BaseQueryBuilder {
     }
   }
 
+  /**
+   * Adds a condition to the whereConditions array
+   * Handles both Q instances and plain objects
+   * @param condition - The condition to add
+   * @param logicalOperator - The logical operator to use
+   * @param groupId - The group identifier
+   */
   private addCondition(
     condition: Q<T> | WithOperators<Partial<T>>,
     logicalOperator: LogicalOperator,
@@ -192,6 +280,12 @@ export class Q<T extends Record<string, unknown>> extends BaseQueryBuilder {
     }
   }
 
+  /**
+   * Handles adding conditions with a specific logical operator
+   * @param conditions - The conditions to add
+   * @param logicalOperator - The logical operator to use
+   * @returns The Q instance for chaining
+   */
   private handleConditions(
     conditions: Conditions<T>,
     logicalOperator: LogicalOperator,
@@ -208,19 +302,40 @@ export class Q<T extends Record<string, unknown>> extends BaseQueryBuilder {
     return this
   }
 
+  /**
+   * Adds conditions using AND operator
+   * @param conditions - The conditions to add
+   * @returns The Q instance for chaining
+   */
   public and(conditions: Conditions<T>) {
     return this.handleConditions(conditions, LogicalOperators.AND)
   }
 
+  /**
+   * Adds conditions using OR operator
+   * @param conditions - The conditions to add
+   * @returns The Q instance for chaining
+   */
   public or(conditions: Conditions<T>) {
     return this.handleConditions(conditions, LogicalOperators.OR)
   }
 
+  /**
+   * Adds conditions using NOT operator
+   * @param conditions - The conditions to negate
+   * @returns The Q instance for chaining
+   */
   public not(conditions: Q<T> | WithOperators<Partial<T>>) {
     return this.handleConditions(conditions, LogicalOperators.NOT)
   }
 }
 
+/**
+ * Main query builder class that extends DataRetrival
+ * Provides methods for building complex SQL queries with filtering, projection, and pagination
+ * @template T - Type of the model's fields
+ * @template M - Type of the model's methods
+ */
 export class QueryBuilder<
   T extends Record<string, unknown>,
   M extends Record<string, unknown>,
@@ -234,6 +349,11 @@ export class QueryBuilder<
   private readonly connectionConfig?: ConnectionConfig
   private readonly baseQueryBuilder: BaseQueryBuilder
 
+  /**
+   * Creates a new QueryBuilder instance
+   * @param model - The model class to build queries for
+   * @param options - Optional configuration for the query builder
+   */
   constructor(
     model: typeof Model<T, M>,
     options: {
@@ -256,6 +376,11 @@ export class QueryBuilder<
     this.baseQueryBuilder = new BaseQueryBuilder()
   }
 
+  /**
+   * Creates a clone of the current QueryBuilder with updated options
+   * @param options - The options to update in the clone
+   * @returns A new QueryBuilder instance with the updated options
+   */
   private clone(
     options: Partial<ConstructorParameters<typeof QueryBuilder>[1]>,
   ): QueryBuilder<T, M> {
@@ -270,6 +395,11 @@ export class QueryBuilder<
     })
   }
 
+  /**
+   * Specifies which fields to select in the query
+   * @param projects - Array of field names or field aliases
+   * @returns A new QueryBuilder instance with the specified projection
+   */
   public project(
     projects: Array<keyof (T & M) | Record<keyof (T & M), string>>,
   ): QueryBuilder<T, M> {
@@ -282,14 +412,29 @@ export class QueryBuilder<
     return this.clone({ project: statements.join(', ') })
   }
 
+  /**
+   * Sets the offset for pagination
+   * @param offset - The number of records to skip
+   * @returns A new QueryBuilder instance with the specified offset
+   */
   public offset(offset: number): QueryBuilder<T, M> {
     return this.clone({ offset })
   }
 
+  /**
+   * Sets the limit for pagination
+   * @param limit - The maximum number of records to return
+   * @returns A new QueryBuilder instance with the specified limit
+   */
   public limit(limit: number): QueryBuilder<T, M> {
     return this.clone({ limit })
   }
 
+  /**
+   * Parses a field name and its operator
+   * @param field - The field name with optional operator suffix
+   * @returns Object containing the base field name and corresponding SQL operator
+   */
   protected parseFieldAndOperator(field: string): {
     key: string
     operator: SqlOperators
@@ -297,6 +442,12 @@ export class QueryBuilder<
     return this.baseQueryBuilder.parseFieldAndOperator(field)
   }
 
+  /**
+   * Parses a filter condition from a field and value
+   * @param field - The field name
+   * @param value - The value to filter by
+   * @returns A Condition object or array of conditions
+   */
   private parseFilterCondition(
     field: string,
     value: any,
@@ -349,6 +500,11 @@ export class QueryBuilder<
     }
   }
 
+  /**
+   * Adds filter conditions to the query
+   * @param conditions - The conditions to filter by
+   * @returns A new QueryBuilder instance with the added filter conditions
+   */
   public filter(
     conditions: WithOperators<Partial<T>> | Q<T>,
   ): QueryBuilder<T, M> {
@@ -373,6 +529,11 @@ export class QueryBuilder<
     })
   }
 
+  /**
+   * Adds exclusion conditions to the query
+   * @param conditions - The conditions to exclude
+   * @returns A new QueryBuilder instance with the added exclusion conditions
+   */
   public exclude(conditions: Partial<T> | Q<T>): QueryBuilder<T, M> {
     if (conditions instanceof Q) {
       return this.clone({
@@ -395,6 +556,11 @@ export class QueryBuilder<
     })
   }
 
+  /**
+   * Builds a SQL condition string from a Condition object
+   * @param condition - The condition to build
+   * @returns SQL condition string
+   */
   private buildCondition(condition: Condition): string {
     if (condition.isNested && Array.isArray(condition.value)) {
       const nestedConditions = condition.value
@@ -414,6 +580,11 @@ export class QueryBuilder<
       : `(${baseCondition})`
   }
 
+  /**
+   * Builds the WHERE clause from an array of conditions
+   * @param conditions - The conditions to build the WHERE clause from
+   * @returns SQL WHERE clause string
+   */
   private buildWhereClause(conditions: Condition[]): string {
     if (conditions.length === 0) return ''
 
@@ -447,6 +618,10 @@ export class QueryBuilder<
     return whereClause
   }
 
+  /**
+   * Builds the complete SQL query
+   * @returns The complete SQL query string
+   */
   public buildQuery(): string {
     const conditions = [...this.whereConditions, ...this.excludeConditions]
     const whereClause = this.buildWhereClause(conditions)
@@ -458,10 +633,18 @@ export class QueryBuilder<
     }`
   }
 
+  /**
+   * Gets the current SQL query
+   * @returns The current SQL query string
+   */
   public getQuery(): string {
     return this.buildQuery()
   }
 
+  /**
+   * Resets the query builder to its initial state
+   * @returns A new QueryBuilder instance with default settings
+   */
   public reset(): QueryBuilder<T, M> {
     return new QueryBuilder(this.model, {
       connectionConfig: this.connectionConfig,
