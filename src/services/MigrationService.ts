@@ -1,3 +1,26 @@
+/**
+ * @file MigrationService.ts
+ * @description This file contains the MigrationService class which manages database migrations
+ * for ClickHouse ORM. It handles the generation, tracking, and application of database schema
+ * changes over time.
+ *
+ * The service provides functionality for:
+ * - Reading and tracking migration files
+ * - Generating new migrations based on model changes
+ * - Applying migrations to the database
+ * - Managing migration dependencies
+ *
+ * @example
+ * ```typescript
+ * const service = new MigrationService('path/to/migrations', credentials);
+ * await service.generateSchema('path/to/models.ts');
+ * await service.migrate();
+ * ```
+ *
+ * @author ClickHouse ORM Contributors
+ * @license MIT
+ */
+
 import path from 'path'
 import fs from 'fs'
 import { Model, NumberField, StringField, TableDefinition } from '../models'
@@ -11,11 +34,17 @@ import {
 } from '../utils/database/connection-manager'
 import { Column } from '../@types'
 
+/**
+ * Represents a migration record in the database
+ */
 type Migration = {
   name: string
   timestamp: number
 }
 
+/**
+ * Model class for tracking applied migrations in the database
+ */
 class MigrationTable extends Model<Migration> {
   static tableDefinition: TableDefinition<Migration> = {
     tableName: 'migrations',
@@ -29,19 +58,35 @@ class MigrationTable extends Model<Migration> {
   }
 }
 
+/**
+ * Service class for managing database migrations
+ */
 export class MigrationService {
   private readonly migrationsPath: string
   private readonly credentials: ConnectionCredentials
 
+  /**
+   * Creates a new instance of MigrationService
+   * @param outputPath - Path where migration files will be stored
+   * @param credentials - Database connection credentials
+   */
   constructor(outputPath: string, credentials: ConnectionCredentials) {
     this.migrationsPath = path.resolve(`${outputPath}/migrations`)
     this.credentials = credentials
   }
 
+  /**
+   * Memoized function to get list of migration files
+   * @returns Array of migration filenames
+   */
   private migrations = memoize((): string[] => {
     return fs.readdirSync(this.migrationsPath)
   })
 
+  /**
+   * Reads and parses all migration files
+   * @returns Array of schema changes from all migrations
+   */
   public readMigrations(): SchemaChanges[] {
     const migrations = this.migrations()
     return migrations.map((migration) => {
@@ -52,6 +97,12 @@ export class MigrationService {
     })
   }
 
+  /**
+   * Merges multiple migrations into a single schema state
+   * @param migrations - Array of schema changes to merge
+   * @returns Array of merged schemas
+   * @throws Error if migrations cannot be merged (e.g., trying to modify non-existent tables)
+   */
   private mergeMigrations(migrations: SchemaChanges[]): Schema[] {
     let mergedMigrations: Schema[] = []
     for (const migration of migrations) {
@@ -81,14 +132,17 @@ export class MigrationService {
               throw new Error('Cannot find schema for table')
             }
 
+            // Apply column additions
             for (const column of addColumns) {
               schema.columns.push(column)
             }
 
+            // Apply column removals
             for (const column of removeColumns) {
               schema.columns = schema.columns.filter((c) => c.name !== column)
             }
 
+            // Apply column updates
             for (const column of updateColumns) {
               const columnIndex = schema.columns.findIndex(
                 (c) => c.name === column.name,
@@ -113,12 +167,19 @@ export class MigrationService {
     return mergedMigrations
   }
 
+  /**
+   * Compares existing schemas with new schemas to generate migration changes
+   * @param existingSchemas - Current database schemas
+   * @param newSchemas - New schemas to compare against
+   * @returns Array of schema changes needed to update the database
+   */
   private diffSchemas(
     existingSchemas: Schema[],
     newSchemas: Schema[],
   ): SchemaChanges {
     const diff: SchemaChanges = []
 
+    // Handle new and modified tables
     for (const newSchema of newSchemas) {
       const existingSchema = existingSchemas.find(
         (s) => s.tableName === newSchema.tableName,
@@ -135,6 +196,7 @@ export class MigrationService {
         const existingColumns = existingSchema.columns.map((c) => c.name)
         const newColumns = newSchema.columns.map((c) => c.name)
 
+        // Find added, removed, and updated columns
         const addedColumns = newColumns.filter(
           (c) => !existingColumns.includes(c),
         )
@@ -178,6 +240,7 @@ export class MigrationService {
       }
     }
 
+    // Handle dropped tables
     const newSchemasTableNames = newSchemas.map((s) => s.tableName)
     const existingSchemasTableNames = existingSchemas.map((s) => s.tableName)
 
@@ -199,6 +262,11 @@ export class MigrationService {
     return diff
   }
 
+  /**
+   * Generates a new migration file based on model changes
+   * @param modelPath - Path to the models file
+   * @throws Error if the file doesn't exist or contains no models
+   */
   public async generateSchema(modelPath: string): Promise<void> {
     try {
       // Resolve the absolute path
@@ -224,6 +292,7 @@ export class MigrationService {
 
       const currentSchemas: Schema[] = []
 
+      // Generate schemas for each model
       for (const [modelName, ModelClass] of modelEntries) {
         const model: typeof Model<any, any> = ModelClass as typeof Model<
           any,
@@ -247,6 +316,7 @@ export class MigrationService {
         })
       }
 
+      // Generate and write the migration file
       const existingMigrations = this.readMigrations()
       const mergedMigrations = this.mergeMigrations(existingMigrations)
       const diff = this.diffSchemas(mergedMigrations, currentSchemas)
@@ -275,23 +345,33 @@ export class MigrationService {
     }
   }
 
+  /**
+   * Applies all pending migrations to the database
+   * Creates the migrations table if it doesn't exist
+   * Records applied migrations in the database
+   */
   public async migrate(): Promise<void> {
+    // Create migrations table if it doesn't exist
     const schema = MigrationTable.generateSchema()
     const runner = new MigrationRunner(this.credentials)
     await runner.createTable(schema)
     ConnectionManager.setDefault({
       credentials: this.credentials,
     })
+
+    // Get list of applied migrations
     const allMigrations = await new MigrationTable().objects.all()
     const migrationsToApply = this.migrations().filter(
       (migration) => !allMigrations.some((m) => m.name === migration),
     )
 
+    // Apply each pending migration
     for (const migration of migrationsToApply) {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const diff = require(path.resolve(`${this.migrationsPath}/${migration}`))
         .diff as SchemaChanges
 
+      // Apply each change in the migration
       for (const change of diff) {
         if (change.changes.type === 'CREATE') {
           await runner.createTable(change.changes.schema)
