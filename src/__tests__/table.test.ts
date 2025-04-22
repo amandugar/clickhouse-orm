@@ -17,6 +17,7 @@ import {
   ConnectionCredentials,
   ConnectionManager,
 } from '../utils/database/connection-manager'
+import { Engine } from '../utils/engines/engines'
 
 type User = {
   id: number
@@ -42,7 +43,7 @@ class UserModel extends Model<User, UserMaterialized> {
   }
 
   static tableDefinition: MergeTreeTableDefinition<User> = {
-    engine: 'MergeTree',
+    engine: Engine.MERGE_TREE,
     partitionBy: 'name',
     orderBy: ['id'],
     tableName: 'users',

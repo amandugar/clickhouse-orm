@@ -9,6 +9,7 @@ import { FieldsOf, TableDefinition } from '../models/types/table-definition'
 import { MigrationRunner } from '../services/MigrationRunner'
 import { ConnectionManager } from '../utils/database/connection-manager'
 import { TupleValue } from '../models/fields/field-types'
+import { Engine } from '../utils/engines/engines'
 
 interface TupleWithArrayValue extends Record<string, TupleValue> {
   name: string
@@ -56,7 +57,7 @@ describe('ArrayField', () => {
 
       static tableDefinition: TableDefinition<TestModelFields> = {
         tableName: 'test_table',
-        engine: 'MergeTree',
+        engine: Engine.MERGE_TREE,
         orderBy: ['id'],
       }
     }
@@ -132,7 +133,7 @@ describe('ArrayField', () => {
 
       static tableDefinition: TableDefinition<TestModelFields> = {
         tableName: 'nested_array_table',
-        engine: 'MergeTree',
+        engine: Engine.MERGE_TREE,
         orderBy: ['id'],
       }
     }
@@ -205,7 +206,7 @@ describe('ArrayField', () => {
 
       static tableDefinition: TableDefinition<TestModelFields> = {
         tableName: 'tuple_with_array_table',
-        engine: 'MergeTree',
+        engine: Engine.MERGE_TREE,
         orderBy: ['id'],
       }
     }
@@ -293,7 +294,7 @@ describe('ArrayField', () => {
 
       static tableDefinition: TableDefinition<TestModelFields> = {
         tableName: 'real_array_test',
-        engine: 'MergeTree',
+        engine: Engine.MERGE_TREE,
         orderBy: ['id'],
       }
     }
@@ -396,7 +397,7 @@ describe('ArrayField', () => {
 
       static tableDefinition: TableDefinition<TestModelFields> = {
         tableName: 'real_tuple_with_array_test',
-        engine: 'MergeTree',
+        engine: Engine.MERGE_TREE,
         orderBy: ['id'],
       }
     }

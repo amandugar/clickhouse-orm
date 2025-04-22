@@ -3,6 +3,7 @@ import { FieldsOf, TableDefinition } from '../models/types/table-definition'
 import { NumberFieldTypes, TupleValue } from '../models/fields/field-types'
 import { MigrationRunner } from '../services/MigrationRunner'
 import { ConnectionManager } from '../utils/database/connection-manager'
+import { Engine } from '../utils/engines/engines'
 
 interface AddressValue extends Record<string, TupleValue> {
   street: string
@@ -67,7 +68,7 @@ describe('TupleField', () => {
 
       static tableDefinition: TableDefinition<TestModelFields> = {
         tableName: 'test_table',
-        engine: 'MergeTree',
+        engine: Engine.MERGE_TREE,
         orderBy: ['id'],
       }
     }
@@ -124,7 +125,7 @@ describe('TupleField', () => {
 
       static tableDefinition: TableDefinition<SimpleTupleModelFields> = {
         tableName: 'simple_tuple_table',
-        engine: 'MergeTree',
+        engine: Engine.MERGE_TREE,
         orderBy: ['id'],
       }
     }
@@ -178,7 +179,7 @@ describe('TupleField', () => {
 
       static tableDefinition: TableDefinition<TestModelFields> = {
         tableName: 'real_tuple_test',
-        engine: 'MergeTree',
+        engine: Engine.MERGE_TREE,
         orderBy: ['id'],
       }
     }

@@ -30,11 +30,11 @@
 
 import { ClickHouseClient } from '@clickhouse/client'
 import { Schema } from '../models/model'
-import { Column } from '../@types'
 import {
   ConnectionCredentials,
   ConnectionManager,
 } from '../utils/database/connection-manager'
+import { SchemaColumn } from './types'
 
 /**
  * MigrationRunner is a service class that handles database schema migrations for ClickHouse.
@@ -120,7 +120,10 @@ export class MigrationRunner {
    * @param tableName - The name of the table to modify
    * @param columns - Array of column definitions to add
    */
-  public async addColumns(tableName: string, columns: Column[]): Promise<void> {
+  public async addColumns(
+    tableName: string,
+    columns: SchemaColumn[],
+  ): Promise<void> {
     const statement = `ALTER TABLE ${tableName} ADD COLUMN ${columns
       .map((c) => {
         const expression = c.expression
@@ -160,7 +163,7 @@ export class MigrationRunner {
    */
   public async updateColumns(
     tableName: string,
-    columns: Column[],
+    columns: SchemaColumn[],
   ): Promise<void> {
     const statement = `ALTER TABLE ${tableName} MODIFY COLUMN ${columns
       .map((c) => {
@@ -181,7 +184,7 @@ export class MigrationRunner {
    * @param type - The column type to convert
    * @returns The string representation of the column type
    */
-  private static getTypeString(type: Column['type']): string {
+  private static getTypeString(type: SchemaColumn['type']): string {
     if (typeof type === 'string') {
       return type
     }

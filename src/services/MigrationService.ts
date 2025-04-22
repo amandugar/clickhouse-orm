@@ -32,7 +32,8 @@ import {
   ConnectionCredentials,
   ConnectionManager,
 } from '../utils/database/connection-manager'
-import { Column } from '../@types'
+import { Engine } from '../utils/engines/engines'
+import { SchemaColumn } from './types'
 
 /**
  * Represents a migration record in the database
@@ -48,7 +49,7 @@ type Migration = {
 class MigrationTable extends Model<Migration> {
   static tableDefinition: TableDefinition<Migration> = {
     tableName: 'migrations',
-    engine: 'MergeTree',
+    engine: Engine.MERGE_TREE,
     orderBy: ['name'],
   }
 
@@ -212,12 +213,14 @@ export class MigrationService {
             JSON.stringify(newSchema.columns.find((col) => col.name === c)),
         )
 
-        const addedFullColumns: Column[] = addedColumns.map(
-          (c) => newSchema.columns.find((col) => col.name === c) as Column,
+        const addedFullColumns: SchemaColumn[] = addedColumns.map(
+          (c) =>
+            newSchema.columns.find((col) => col.name === c) as SchemaColumn,
         )
 
-        const updatedFullColumns: Column[] = updatedColumns.map(
-          (c) => newSchema.columns.find((col) => col.name === c) as Column,
+        const updatedFullColumns: SchemaColumn[] = updatedColumns.map(
+          (c) =>
+            newSchema.columns.find((col) => col.name === c) as SchemaColumn,
         )
 
         if (
