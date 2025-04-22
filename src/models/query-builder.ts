@@ -71,7 +71,7 @@ type Conditions<T extends Record<string, unknown>> =
  * Type that allows field names to be suffixed with operator names
  * Enables syntax like { name__contains: 'John' } for LIKE queries
  */
-type WithOperators<T> = {
+export type WithOperators<T> = {
   [K in keyof T as K extends string ? K | `${K}${OperatorSuffix}` : never]:
     | Partial<T[K]>
     | Partial<WithOperators<T[K]>>

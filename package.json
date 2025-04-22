@@ -1,6 +1,6 @@
 {
   "name": "thunder-schema",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "A TypeScript ORM for ClickHouse with migrations support",
   "files": [
     "dist",
@@ -11,8 +11,11 @@
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "bin": {
+    "thunder-schema": "dist/cli/index.js"
+  },
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && chmod +x dist/cli/index.js",
     "clean": "rimraf dist",
     "test": "jest --forceExit --config jest.config.js",
     "test:watch": "jest --watch --config jest.config.js",
@@ -47,7 +50,8 @@
   "dependencies": {
     "@clickhouse/client": "^1.11.1",
     "crypto": "^1.0.1",
-    "lodash": "^4.17.21"
+    "lodash": "^4.17.21",
+    "path": "^0.12.7"
   },
   "devDependencies": {
     "@tsconfig/node20": "^20.1.5",
@@ -71,6 +75,5 @@
   },
   "workspaces": [
     "src/*"
-  ],
-  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+  ]
 }
