@@ -1064,6 +1064,83 @@ The above will generate a schema with a tuple field containing a string and an a
 Tuple(name String, favoriteNumbers Array(Int32))
 ```
 
+#### Tuple Filtering
+
+You can filter on tuple fields using dot notation to access nested fields. Here are some examples:
+
+```typescript
+// Filter on a simple tuple field
+class AddressModel extends Model<AddressSchema> {
+  static fields = {
+    id: new NumberField({}),
+    address: new TupleField({
+      fields: {
+        street: new StringField({ defaultValue: '' }),
+        city: new StringField({ defaultValue: '' }),
+        zip: new NumberField({ defaultValue: 0 }),
+      },
+    }),
+  }
+}
+
+// Filter by city
+const query = addressModel.objects.filter({
+  'address.city': 'New York'
+})
+
+// Filter with comparison operators
+const query = addressModel.objects.filter({
+  address: {
+    zip__gt: 10000,
+  }
+})
+
+// Filter on nested tuples
+class LocationModel extends Model<LocationSchema> {
+  static fields = {
+    id: new NumberField({}),
+    location: new TupleField({
+      fields: {
+        coordinates: new TupleField({
+          fields: {
+            lat: new NumberField({ defaultValue: 0 }),
+            lon: new NumberField({ defaultValue: 0 }),
+          },
+        }),
+        name: new StringField({ defaultValue: '' }),
+      },
+    }),
+  }
+}
+
+// Filter on nested tuple fields
+const query = locationModel.objects.filter({
+  location: {
+    coordinates: {
+      lat__gt: 40.0,
+      lon__lt: -73.0
+    },
+  }
+})
+
+// Filter with multiple conditions
+const query = locationModel.objects.filter(
+  new Q<LocationSchema>().and([
+    { location: { coordinates: { lat__gt: 40.0 } } },
+    { location: { name__icontains: 'Central' } }
+  ])
+)
+```
+
+The above queries will generate SQL like:
+```sql
+-- Simple tuple filter
+SELECT * FROM address_model WHERE address.city = 'New York'
+
+-- Nested tuple filter
+SELECT * FROM location_model WHERE location.coordinates.lat > 40.0 AND location.coordinates.lon < -73.0
+```
+
 #### Default Values
 
 Array fields support default values at both the array and element level:
