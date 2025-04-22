@@ -411,22 +411,86 @@ console.log(user.values.isActive) // true
 console.log(user.values.createdAt) // current timestamp
 ```
 
-## Database Migrations
+## CLI Usage
 
-Thunder Schema provides a robust migration system to manage your database schema changes. The migration system helps you version control your database schema and apply changes in a controlled manner.
+The package provides a CLI tool called `thunder-schema` for managing migrations and database operations. Here are the available commands:
 
-### Creating Migrations
+### Generate Migrations
 
-To create migrations, first define your models and then run:
+Generate migration files from your model definitions:
 
-The first argument is the path to the model file and the second argument is the path to the migrations directory.
+```bash
+npx thunder-schema makemigrations <model-path> [output-path]
+```
 
-Your export file should be like this:
+- `model-path`: Path to your model files (default: './models')
+- `output-path`: Path where migrations will be generated (default: './migrations')
+
+Example:
+```bash
+npx thunder-schema makemigrations ./src/models ./migrations
+```
+
+### List Migrations
+
+View all available migrations:
+
+```bash
+npx thunder-schema readmigrations [migrations-path]
+```
+
+- `migrations-path`: Path to your migrations directory (default: './migrations')
+
+Example:
+```bash
+npx thunder-schema readmigrations ./migrations
+```
+
+### Apply Migrations
+
+Apply pending migrations to your database:
+
+```bash
+npx thunder-schema migrate [migrations-path]
+```
+
+- `migrations-path`: Path to your migrations directory (default: './migrations')
+
+Example:
+```bash
+npx thunder-schema migrate ./migrations
+```
+
+### Environment Variables
+
+The CLI tool uses the following environment variables for database connection:
+Thunder Schema provides a robust migration system to manage your database schema changes. The 
+migration system helps you version control your database schema and apply changes in a 
+controlled manner.
+- `CLICKHOUSE_URL`: ClickHouse server URL (default: 'http://localhost:8123')
+- `CLICKHOUSE_USERNAME`: ClickHouse username (default: 'default')
+- `CLICKHOUSE_PASSWORD`: ClickHouse password (default: '')
+- `CLICKHOUSE_DATABASE`: ClickHouse database name (default: 'default')
+
+Example:
+```bash
+export CLICKHOUSE_URL=http://localhost:8123
+export CLICKHOUSE_USERNAME=default
+export CLICKHOUSE_PASSWORD=password
+export CLICKHOUSE_DATABASE=my_database
+npx thunder-schema migrate
+```
+
+## Migration Examples
+
+Here are some examples of how to use migrations in your project:
+
+### Basic Model Definition
 
 ```typescript
-import { NumberField, StringField } from '../models'
-import { FieldsOf, TableDefinition } from '../models/types/table-definition'
-import { Model } from '../models/model'
+import { NumberField, StringField } from 'thunder-schema'
+import { FieldsOf, TableDefinition } from 'thunder-schema'
+import { Model } from 'thunder-schema'
 
 type UserSchema = {
   id: number
@@ -485,39 +549,6 @@ const models: (typeof Model<any, any>)[] = [User, Post]
 export default models
 ```
 
-Then run:
-
-```bash
-npm run makemigrations -- src/example/model.ts src/example
-```
-
-This command will:
-- Compare your current model definitions with existing migrations
-- Generate a new migration file in the `migrations` directory
-- Create the necessary SQL statements to update your database schema
-
-### Applying Migrations
-
-Before applying migrations, ensure your database connection is properly configured through environment variables:
-
-```bash
-export CLICKHOUSE_URL=http://localhost:8123
-export CLICKHOUSE_USERNAME=default
-export CLICKHOUSE_PASSWORD=
-export CLICKHOUSE_DATABASE=default
-```
-
-Then run:
-
-```bash
-npm run migrate
-```
-
-This will:
-- Create a migrations table if it doesn't exist
-- Apply any pending migrations in order
-- Record the applied migrations in the database
-
 ### Migration Types
 
 The migration system supports several types of schema changes:
@@ -529,9 +560,9 @@ The migration system supports several types of schema changes:
    - Updating column definitions
 3. **DROP**: Dropping tables
 
-### Migration Diff Examples
+### Example Migration Diffs
 
-Migration diffs are generated automatically when you run `makemigrations`. Here are examples of what different types of diffs look like:
+Here are examples of what different types of migration diffs look like:
 
 1. **Creating a new table**:
 ```typescript
@@ -647,22 +678,22 @@ The migration system automatically generates these diffs based on the changes in
 1. Define your initial models
 2. Generate the first migration:
 ```bash
-npm run makemigrations -- src/models.ts
+npx thunder-schema makemigrations -- src/models.ts
 ```
 
 3. Apply the migration:
 ```bash
-npm run migrate
+npx thunder-schema migrate
 ```
 4. When you need to make changes to your schema:
    - Update your model definitions
    - Generate a new migration:
 ```bash
-npm run makemigrations -- src/models.ts
+npx thunder-schema makemigrations -- src/models.ts
 ```
    - Apply the new migration:
 ```bash
-npm run migrate
+npx thunder-schema migrate
 ```
 
 ### Viewing Migrations
