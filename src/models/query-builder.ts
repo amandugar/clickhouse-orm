@@ -29,8 +29,9 @@ type Conditions<T extends Record<string, unknown>> =
 
 type WithOperators<T> = {
   [K in keyof T as K extends string ? K | `${K}${OperatorSuffix}` : never]:
-    | T[K]
-    | T[K][]
+    | Partial<T[K]>
+    | Partial<WithOperators<T[K]>>
+    | Partial<T[K]>[]
 }
 
 class BaseQueryBuilder {

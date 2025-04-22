@@ -1,38 +1,33 @@
-import { BooleanField, Model, NumberField, StringField } from '../models'
+import {
+  BooleanField,
+  Model,
+  NumberField,
+  StringField,
+  TupleField,
+} from '../models'
 import { FieldsOf, TableDefinition } from '../models/types/table-definition'
 import { Q } from '../models/query-builder'
 import { FieldOperators, OperatorSuffix } from '../models/operators'
 
-type WithOperators<T> = {
-  [K in keyof T as K extends string
-    ? K | `${K}${OperatorSuffix}`
-    : never]?: T[K] extends string ? string | string[] : T[K]
+type Name = {
+  first?: string
+  last?: string
 }
 
+type Contact = {
+  email?: string
+  phone: string
+}
+
+type Address = {
+  street: string
+  city?: string
+  country?: string
+}
 type UserProfile = {
-  name?: {
-    first?: string
-    last?: string
-  } & WithOperators<{
-    first: string
-    last: string
-  }>
-  contact?: {
-    email?: string
-    phone?: string
-  } & WithOperators<{
-    email: string
-    phone: string
-  }>
-  address?: {
-    street?: string
-    city?: string
-    country?: string
-  } & WithOperators<{
-    street: string
-    city: string
-    country: string
-  }>
+  name?: Name
+  contact?: Contact
+  address?: Address
 }
 
 type User = {
@@ -44,7 +39,29 @@ type User = {
 class UserModel extends Model<User> {
   static fields = {
     id: new NumberField({}),
-    profile: new StringField({}),
+    profile: new TupleField<UserProfile>({
+      fields: {
+        name: new TupleField<Name>({
+          fields: {
+            first: new StringField({}),
+            last: new StringField({}),
+          },
+        }),
+        contact: new TupleField<Contact>({
+          fields: {
+            email: new StringField({}),
+            phone: new StringField({}),
+          },
+        }),
+        address: new TupleField<Address>({
+          fields: {
+            street: new StringField({}),
+            city: new StringField({}),
+            country: new StringField({}),
+          },
+        }),
+      },
+    }),
     isActive: new BooleanField({}),
   }
 

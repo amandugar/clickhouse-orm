@@ -41,4 +41,15 @@ export class TupleField<T extends Record<string, any>> extends Field {
 
     return `(${formattedValues.join(', ')})`
   }
+
+  public parseFieldName(fieldName: string): {
+    name: string
+    operator?: string
+  } {
+    const parts = fieldName.split('__')
+    if (parts.length === 1) {
+      return { name: fieldName }
+    }
+    return { name: parts[0], operator: parts[1] }
+  }
 }
