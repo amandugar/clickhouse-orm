@@ -60,6 +60,15 @@ class BaseQueryBuilder {
       return `${condition.field} IN ${values}`
     }
 
+    if (condition.operator === SqlOperators.HAS_ANY) {
+      const values = Array.isArray(condition.value)
+        ? condition.value.length === 0
+          ? '[]'
+          : `['${condition.value.join("', '")}']`
+        : condition.value
+      return `hasAny(${condition.field}, ${values})`
+    }
+
     if (condition.value === null || condition.value === undefined) {
       return `${condition.field} IS NULL`
     }

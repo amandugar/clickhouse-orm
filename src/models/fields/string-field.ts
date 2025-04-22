@@ -6,5 +6,6 @@ export class StringField extends Field {
 
   constructor(options: StringFieldOptions) {
     super(options)
+    this.type = options.type ?? StringFieldTypes.String
   }
 }

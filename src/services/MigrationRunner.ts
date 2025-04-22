@@ -24,7 +24,7 @@ export class MigrationRunner {
       if (expression) {
         columnDef += ` MATERIALIZED ${expression}`
       }
-      if (column.default !== undefined) {
+      if (column.default !== undefined && column.default !== '') {
         columnDef += ` DEFAULT ${column.default}`
       }
       return columnDef

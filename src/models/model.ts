@@ -7,6 +7,8 @@ import {
 } from '../utils/database/connection-manager'
 import { ClickHouseClient } from '@clickhouse/client'
 import { QueryBuilder } from './query-builder'
+import { TupleField } from './fields/tuple-field'
+import { TupleFieldOptions } from './fields/field-types'
 
 /**
  * @description
@@ -100,7 +102,22 @@ export abstract class Model<
 
   public static init(): void {
     Object.entries(this.fields).forEach(([fieldName, field]) => {
-      field.setName(fieldName)
+      if (field instanceof TupleField) {
+        const setFieldNamesRecursively = (field: Field, name: string) => {
+          field.setName(name)
+          if (field instanceof TupleField) {
+            const tupleOptions = field.getOptions() as TupleFieldOptions
+            Object.entries(tupleOptions.fields).forEach(
+              ([nestedName, nestedField]) => {
+                setFieldNamesRecursively(nestedField, nestedName)
+              },
+            )
+          }
+        }
+        setFieldNamesRecursively(field, fieldName)
+      } else {
+        field.setName(fieldName)
+      }
     })
 
     if (!this.tableDefinition) {
@@ -113,11 +130,12 @@ export abstract class Model<
     const tableName = tableDefinition.tableName
     const columns: Column[] = Object.keys(this.fields).map((fieldName) => {
       const field = this.fields[fieldName]
+
       return {
         name: fieldName,
         type: field.getType() as FieldType,
         expression: field.getOptions().expression,
-        default: field.getOptions().defaultValue,
+        default: field.getDefaultValue(),
       }
     })
 

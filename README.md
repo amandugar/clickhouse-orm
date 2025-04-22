@@ -996,3 +996,81 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 [MIT License](LICENSE)
+
+### Array Fields and Nested Structures
+
+The ORM supports array fields and nested structures like arrays within tuples. Here's how to use them:
+
+#### Basic Array Fields
+
+```typescript
+class Product extends Model<ProductSchema> {
+  static fields = {
+    id: new NumberField({}),
+    tags: new ArrayField({
+      elementType: new StringField({ defaultValue: '' }),
+      defaultValue: ['new', 'featured'],
+    }),
+    prices: new ArrayField({
+      elementType: new NumberField({ defaultValue: 0 }),
+      defaultValue: [10, 20, 30],
+    }),
+  }
+}
+```
+
+#### Nested Arrays
+
+You can create arrays of arrays for more complex data structures:
+
+```typescript
+class Matrix extends Model<MatrixSchema> {
+  static fields = {
+    id: new NumberField({}),
+    data: new ArrayField({
+      elementType: new ArrayField({
+        elementType: new NumberField({ defaultValue: 0 }),
+        defaultValue: [],
+      }),
+      defaultValue: [[1, 2], [3, 4]],
+    }),
+  }
+}
+```
+
+#### Tuples with Arrays
+
+You can combine tuples and arrays for complex nested structures:
+
+```typescript
+class UserProfile extends Model<UserProfileSchema> {
+  static fields = {
+    id: new NumberField({}),
+    preferences: new TupleField({
+      fields: {
+        name: new StringField({ defaultValue: '' }),
+        favoriteNumbers: new ArrayField({
+          elementType: new NumberField({ defaultValue: 0 }),
+          defaultValue: [1, 2, 3],
+        }),
+      },
+    }),
+  }
+}
+```
+
+The above will generate a schema with a tuple field containing a string and an array of numbers:
+```sql
+Tuple(name String, favoriteNumbers Array(Int32))
+```
+
+#### Default Values
+
+Array fields support default values at both the array and element level:
+
+```typescript
+new ArrayField({
+  elementType: new StringField({ defaultValue: 'default' }), // Element default
+  defaultValue: ['value1', 'value2'], // Array default
+})
+```
