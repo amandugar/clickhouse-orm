@@ -39,14 +39,6 @@ A TypeScript ORM for ClickHouse databases with type-safety at its core.
 10. [Contributing](#contributing)
 11. [License](#license)
 
-## Index of Data
-- [User Model](#user-model)
-- [Post Model](#post-model)
-- [Product Model](#product-model)
-- [Order Model](#order-model)
-- [Matrix Model](#matrix-model)
-- [UserProfile Model](#userprofile-model)
-
 ## Introduction
 
 Thunder Schema is a TypeScript ORM for ClickHouse that provides a simple and type-safe way to interact with ClickHouse databases. It features type-safe model definitions, a powerful query builder, migration support, connection management, and a TypeScript-first approach.
@@ -181,8 +173,6 @@ try {
 
 ### Defining Models
 
-#### User Model
-
 ```typescript
 import { Model } from 'thunder-schema'
 import { FieldsOf, TableDefinition } from 'thunder-schema'
@@ -211,124 +201,6 @@ class User extends Model<UserSchema> {
     tableName: 'users',
     engine: 'MergeTree',
     orderBy: ['createdAt'],
-  }
-}
-```
-
-#### Post Model
-
-```typescript
-type PostSchema = {
-  id: string
-  userId: string
-  title: string
-  content: string
-  createdAt: number
-  updatedAt: number
-}
-
-class Post extends Model<PostSchema> {
-  static fields: FieldsOf<PostSchema> = {
-    id: new StringField({}),
-    userId: new StringField({}),
-    title: new StringField({}),
-    content: new StringField({}),
-    createdAt: new NumberField({}),
-    updatedAt: new NumberField({}),
-  }
-
-  static tableDefinition: TableDefinition<PostSchema> = {
-    tableName: 'posts',
-    engine: 'MergeTree',
-    orderBy: ['createdAt'],
-  }
-}
-```
-
-#### Product Model
-
-```typescript
-class Product extends Model<ProductSchema> {
-  static fields = {
-    id: new NumberField({}),
-    tags: new ArrayField({
-      elementType: new StringField({ defaultValue: '' }),
-      defaultValue: ['new', 'featured'],
-    }),
-    prices: new ArrayField({
-      elementType: new NumberField({ defaultValue: 0 }),
-      defaultValue: [10, 20, 30],
-    }),
-  }
-}
-```
-
-#### Order Model
-
-```typescript
-// Migration file: 1678901278901-create_orders_table.ts
-export const diff = [
-  {
-    changes: {
-      type: 'CREATE',
-      schema: {
-        tableName: 'orders',
-        columns: [
-          { name: 'id', type: 'String' },
-          { name: 'userId', type: 'String' },
-          { name: 'productId', type: 'String' },
-          { name: 'quantity', type: 'Int32', defaultValue: '1' },
-          { name: 'price', type: 'Decimal(10, 2)' },
-          { 
-            name: 'totalPrice', 
-            type: 'Decimal(10, 2)', 
-            expression: 'quantity * price' 
-          },
-          { name: 'orderDate', type: 'DateTime', defaultValue: 'now()' },
-          { name: 'status', type: 'String', defaultValue: "'pending'" }
-        ],
-        engine: 'MergeTree',
-        orderBy: ['orderDate'],
-        partitionBy: 'toYYYYMM(orderDate)',
-        primaryKey: ['id']
-      }
-    }
-  }
-]
-```
-
-#### Matrix Model
-
-```typescript
-class Matrix extends Model<MatrixSchema> {
-  static fields = {
-    id: new NumberField({}),
-    data: new ArrayField({
-      elementType: new ArrayField({
-        elementType: new NumberField({ defaultValue: 0 }),
-        defaultValue: [],
-      }),
-      defaultValue: [[1, 2], [3, 4]],
-    }),
-  }
-}
-```
-
-#### UserProfile Model
-
-```typescript
-class UserProfile extends Model<UserProfileSchema> {
-  static fields = {
-    id: new NumberField({}),
-    preferences: new TupleField({
-      fields: {
-        name: new StringField({ defaultValue: '' }),
-        favoriteNumbers: new ArrayField({
-          elementType: new NumberField({ defaultValue: 0 }),
-          defaultValue: [1, 2, 3],
-        }),
-      },
-    }),
   }
 }
 ```
@@ -1105,6 +977,161 @@ console.log(query) // SELECT id, name FROM users WHERE (isActive = true)
 
 // Reset query conditions
 query.reset()
+```
+
+## Array Fields and Nested Structures
+
+The ORM supports array fields and nested structures like arrays within tuples. Here's how to use them:
+
+#### Basic Array Fields
+
+```typescript
+class Product extends Model<ProductSchema> {
+  static fields = {
+    id: new NumberField({}),
+    tags: new ArrayField({
+      elementType: new StringField({ defaultValue: '' }),
+      defaultValue: ['new', 'featured'],
+    }),
+    prices: new ArrayField({
+      elementType: new NumberField({ defaultValue: 0 }),
+      defaultValue: [10, 20, 30],
+    }),
+  }
+}
+```
+
+#### Nested Arrays
+
+You can create arrays of arrays for more complex data structures:
+
+```typescript
+class Matrix extends Model<MatrixSchema> {
+  static fields = {
+    id: new NumberField({}),
+    data: new ArrayField({
+      elementType: new ArrayField({
+        elementType: new NumberField({ defaultValue: 0 }),
+        defaultValue: [],
+      }),
+      defaultValue: [[1, 2], [3, 4]],
+    }),
+  }
+}
+```
+
+#### Tuples with Arrays
+
+You can combine tuples and arrays for complex nested structures:
+
+```typescript
+class UserProfile extends Model<UserProfileSchema> {
+  static fields = {
+    id: new NumberField({}),
+    preferences: new TupleField({
+      fields: {
+        name: new StringField({ defaultValue: '' }),
+        favoriteNumbers: new ArrayField({
+          elementType: new NumberField({ defaultValue: 0 }),
+          defaultValue: [1, 2, 3],
+        }),
+      },
+    }),
+  }
+}
+```
+
+The above will generate a schema with a tuple field containing a string and an array of numbers:
+```sql
+Tuple(name String, favoriteNumbers Array(Int32))
+```
+
+#### Tuple Filtering
+
+You can filter on tuple fields using dot notation to access nested fields. Here are some examples:
+
+```typescript
+// Filter on a simple tuple field
+class AddressModel extends Model<AddressSchema> {
+  static fields = {
+    id: new NumberField({}),
+    address: new TupleField({
+      fields: {
+        street: new StringField({ defaultValue: '' }),
+        city: new StringField({ defaultValue: '' }),
+        zip: new NumberField({ defaultValue: 0 }),
+      },
+    }),
+  }
+}
+
+// Filter by city
+const query = addressModel.objects.filter({
+  'address.city': 'New York'
+})
+
+// Filter with comparison operators
+const query = addressModel.objects.filter({
+  address: {
+    zip__gt: 10000,
+  }
+})
+
+// Filter on nested tuples
+class LocationModel extends Model<LocationSchema> {
+  static fields = {
+    id: new NumberField({}),
+    location: new TupleField({
+      fields: {
+        coordinates: new TupleField({
+          fields: {
+            lat: new NumberField({ defaultValue: 0 }),
+            lon: new NumberField({ defaultValue: 0 }),
+          },
+        }),
+        name: new StringField({ defaultValue: '' }),
+      },
+    }),
+  }
+}
+
+// Filter on nested tuple fields
+const query = locationModel.objects.filter({
+  location: {
+    coordinates: {
+      lat__gt: 40.0,
+      lon__lt: -73.0
+    },
+  }
+})
+
+// Filter with multiple conditions
+const query = locationModel.objects.filter(
+  new Q<LocationSchema>().and([
+    { location: { coordinates: { lat__gt: 40.0 } } },
+    { location: { name__icontains: 'Central' } }
+  ])
+)
+```
+
+The above queries will generate SQL like:
+```sql
+-- Simple tuple filter
+SELECT * FROM address_model WHERE address.city = 'New York'
+
+-- Nested tuple filter
+SELECT * FROM location_model WHERE location.coordinates.lat > 40.0 AND location.coordinates.lon < -73.0
+```
+
+#### Default Values
+
+Array fields support default values at both the array and element level:
+
+```typescript
+new ArrayField({
+  elementType: new StringField({ defaultValue: 'default' }), // Element default
+  defaultValue: ['value1', 'value2'], // Array default
+})
 ```
 
 ## API Reference
