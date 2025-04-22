@@ -1,12 +1,4 @@
-import {
-  BooleanField,
-  BooleanFieldTypes,
-  Model,
-  NumberField,
-  NumberFieldTypes,
-  StringField,
-  StringFieldTypes,
-} from '../models'
+import { BooleanField, Model, NumberField, StringField } from '../models'
 import {
   FieldsOf,
   MergeTreeTableDefinition,
@@ -18,6 +10,11 @@ import {
   ConnectionManager,
 } from '../utils/database/connection-manager'
 import { Engine } from '../utils/engines/engines'
+import {
+  BooleanFieldTypes,
+  NumberFieldTypes,
+  StringFieldTypes,
+} from '../models/fields/field-types'
 
 type User = {
   id: number
