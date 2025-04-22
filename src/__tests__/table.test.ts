@@ -154,6 +154,9 @@ describe('Model', () => {
     expect(queryRightNow2).toBe(
       "SELECT * FROM users WHERE ((((id = 1)) AND ((name = 'John'))) OR ((NOT (((id = 2)) OR ((email = 'test@test.com'))))))",
     )
+
+    const count = await queryData2.count()
+    expect(count).toBeGreaterThan(0)
   })
 
   it('should handle comparison operators', async () => {

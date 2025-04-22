@@ -1,4 +1,4 @@
-import { Field, FieldType } from './fields/base-field'
+import { Field } from './fields/base-field'
 import { TableDefinition, FieldsOf } from './types/table-definition'
 import {
   ConnectionManager,
@@ -8,7 +8,7 @@ import {
 import { ClickHouseClient } from '@clickhouse/client'
 import { QueryBuilder } from './query-builder'
 import { TupleField } from './fields/tuple-field'
-import { TupleFieldOptions } from './fields/field-types'
+import { FieldType, TupleFieldOptions } from './fields/field-types'
 
 /**
  * @description
@@ -63,10 +63,11 @@ export type SchemaChanges = SchemaChange[]
  * M stands for the materialized or virtual fields
  */
 
-export abstract class Model<
-  T extends Record<string, unknown>,
-  M extends Record<string, unknown> = T,
-> {
+export interface ModelType {
+  [key: string]: any
+}
+
+export abstract class Model<T extends ModelType, M extends ModelType = T> {
   protected static fields: FieldsOf<any> = {}
   public static tableDefinition: TableDefinition<any>
   public connectionConfig?: ConnectionConfig

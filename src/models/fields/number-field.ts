@@ -1,4 +1,5 @@
 import { BaseColumn } from '../column'
+import { ModelType } from '../model'
 import { Field } from './base-field'
 import { NumberFieldOptions, NumberFieldTypes } from './field-types'
 
@@ -13,7 +14,7 @@ export enum NumberTypes {
   UINT_64 = 'UInt64',
 }
 
-export type NumberColumn<T extends Record<string, unknown>> = BaseColumn<T> & {
+export type NumberColumn<T extends ModelType> = BaseColumn<T> & {
   type: NumberTypes
   default?: number
 }

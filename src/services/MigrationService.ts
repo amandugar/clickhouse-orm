@@ -23,7 +23,13 @@
 
 import path from 'path'
 import fs from 'fs'
-import { Model, NumberField, StringField, TableDefinition } from '../models'
+import {
+  Model,
+  NumberField,
+  NumberFieldTypes,
+  StringField,
+  TableDefinition,
+} from '../models'
 import { Schema, SchemaChanges } from '../models/model'
 import { memoize } from 'lodash'
 import { FieldsOf } from '../models/types/table-definition'
@@ -55,7 +61,9 @@ class MigrationTable extends Model<Migration> {
 
   protected static fields: FieldsOf<Migration> = {
     name: new StringField({}),
-    timestamp: new NumberField({}),
+    timestamp: new NumberField({
+      type: NumberFieldTypes.Int64,
+    }),
   }
 }
 
@@ -93,6 +101,7 @@ export class MigrationService {
     return migrations.map((migration) => {
       const filePath = path.resolve(`${this.migrationsPath}/${migration}`)
       // eslint-disable-next-line @typescript-eslint/no-var-requires
+      require('ts-node').register()
       const diff = require(filePath).diff
       return diff
     })
@@ -282,6 +291,7 @@ export class MigrationService {
 
       // Import the models dynamically
       // eslint-disable-next-line @typescript-eslint/no-var-requires
+      require('ts-node').register()
       const models = require(absolutePath)
 
       console.log(`Generating schema from ${modelPath}:`)

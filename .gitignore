@@ -5,3 +5,6 @@ src/example/migrations/*
 *.log
 .vscode/
 dist/
+*.js
+tsconfig.tsbuildinfo
+*.tgz

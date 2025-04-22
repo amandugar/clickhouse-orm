@@ -1,4 +1,4 @@
-import { FieldType } from '../models/fields/base-field'
+import { FieldType } from '../models'
 
 export type SchemaColumn = {
   name: string

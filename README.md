@@ -195,7 +195,7 @@ try {
 
 ## Advanced Usage
 
-### Query Builder
+### Query Building
 
 ```typescript
 import { QueryBuilder } from 'thunder-schema'
@@ -209,6 +209,92 @@ const query = userModel.objects.filter(
 
 const results = await query.all()
 ```
+
+### Query Methods
+
+The ORM provides several useful methods for querying and manipulating data:
+
+#### Sorting Results
+
+The `sort()` method allows you to sort query results by one or more fields:
+
+```typescript
+// Sort by a single field
+const users = await User.objects
+  .sort({ createdAt: -1 }) // -1 for descending, 1 for ascending
+  .all()
+
+// Sort by multiple fields
+const users = await User.objects
+  .sort({
+    isActive: -1,  // Active users first
+    createdAt: 1   // Then by creation date ascending
+  })
+  .all()
+```
+
+#### Counting Results
+
+The `count()` method returns the number of records matching the query:
+
+```typescript
+// Count all users
+const totalUsers = await User.objects.count()
+
+// Count with filters
+const activeUsers = await User.objects
+  .filter({ isActive: true })
+  .count()
+```
+
+#### Getting First Result
+
+The `first()` method returns the first record matching the query:
+
+```typescript
+// Get first user
+const firstUser = await User.objects.first()
+
+// Get first active user
+const firstActiveUser = await User.objects
+  .filter({ isActive: true })
+  .first()
+```
+
+#### Getting All Results
+
+The `all()` method returns all records matching the query:
+
+```typescript
+// Get all users
+const allUsers = await User.objects.all()
+
+// Get all with filters and sorting
+const activeUsers = await User.objects
+  .filter({ isActive: true })
+  .sort({ createdAt: -1 })
+  .all()
+```
+
+#### Using FINAL Modifier
+
+The `final()` method adds the FINAL modifier to the query, which is useful for ReplacingMergeTree tables to ensure you get the final version of each row:
+
+```typescript
+// Get final versions of rows
+const finalUsers = await User.objects
+  .final()
+  .all()
+
+// Combine with other methods
+const finalActiveUsers = await User.objects
+  .filter({ isActive: true })
+  .final()
+  .sort({ createdAt: -1 })
+  .all()
+```
+
+Note: The `final()` method can only be used with ReplacingMergeTree tables and will throw an error if used with other table engines.
 
 ### Nested Queries and Complex Conditions
 
@@ -669,516 +755,4 @@ export const diff = [
     }
   }
 ]
-```
-
-The migration system automatically generates these diffs based on the changes in your model definitions. Each diff is stored in a separate migration file with a timestamp prefix (e.g., `1678901234567-migration.ts`).
-
-### Example Migration Workflow
-
-1. Define your initial models
-2. Generate the first migration:
-```bash
-npx thunder-schema makemigrations -- src/models.ts
-```
-
-3. Apply the migration:
-```bash
-npx thunder-schema migrate
-```
-4. When you need to make changes to your schema:
-   - Update your model definitions
-   - Generate a new migration:
-```bash
-npx thunder-schema makemigrations -- src/models.ts
-```
-   - Apply the new migration:
-```bash
-npx thunder-schema migrate
-```
-
-### Viewing Migrations
-
-You can view your existing migrations using:
-
-```bash
-npm run readmigrations
-```
-
-### Migration Features
-
-The migration system supports:
-
-1. **Materialized Columns**: Computed columns that are stored in the table
-2. **Default Values**: Automatic value assignment for new records
-3. **Table Engine Configuration**: Support for various ClickHouse table engines
-4. **Order By Clauses**: Define sorting order for MergeTree tables
-5. **Partitioning**: Support for table partitioning
-
-Example with advanced features:
-
-```typescript
-class User extends Model<UserSchema> {
-  static fields: FieldsOf<UserSchema> = {
-    id: new NumberField({}),
-    name: new StringField({}),
-    // Materialized column
-    fullName: new StringField({
-      expression: "concat(name, ' ', lastName)"
-    }),
-    // Column with default value
-    createdAt: new NumberField({
-      defaultValue: Date.now()
-    })
-  }
-
-  static tableDefinition: TableDefinition<UserSchema> = {
-    tableName: 'users',
-    engine: 'MergeTree',
-    orderBy: ['createdAt'],
-    partitionBy: 'toYYYYMM(createdAt)',
-    primaryKey: ['id']
-  }
-}
-```
-
-The migration system automatically tracks which migrations have been applied using a `migrations` table in your database and ensures migrations are applied in the correct order.
-
-## Advanced Query Building
-
-### Projection and Field Selection
-
-You can select specific fields using the `project()` method:
-
-```typescript
-// Select specific fields
-const users = await User.objects
-  .project(['id', 'name', 'email'])
-  .all()
-
-// Rename fields in the result
-const users = await User.objects
-  .project([
-    'id',
-    { name: 'fullName' },
-    { email: 'contactEmail' }
-  ])
-  .all()
-```
-
-### Excluding Records
-
-The `exclude()` method allows you to filter out records that match certain conditions:
-
-```typescript
-// Exclude specific records
-const activeUsers = await User.objects
-  .exclude({ isActive: false })
-  .all()
-
-// Complex exclusion conditions
-const validUsers = await User.objects
-  .exclude(
-    new Q<User>().or([
-      { email: null },
-      { name: '' }
-    ])
-  )
-  .all()
-```
-
-### Query Inspection and Debugging
-
-You can inspect the generated SQL query:
-
-```typescript
-const query = User.objects
-  .filter({ isActive: true })
-  .project(['id', 'name'])
-  .getQuery()
-
-console.log(query) // SELECT id, name FROM users WHERE (isActive = true)
-```
-
-### Resetting Queries
-
-The `reset()` method clears all query conditions:
-
-```typescript
-const query = User.objects
-  .filter({ isActive: true })
-  .project(['id', 'name'])
-
-// Clear all conditions
-query.reset()
-
-// Now query is back to SELECT * FROM users
-```
-
-## Field Types and Options
-
-### Available Field Types
-
-1. **NumberField**: For numeric values
-   ```typescript
-   new NumberField({
-     defaultValue: 0,
-     nullable: false
-   })
-   ```
-
-2. **StringField**: For text values
-   ```typescript
-   new StringField({
-     defaultValue: '',
-     nullable: true,
-     maxLength: 255
-   })
-   ```
-
-3. **BooleanField**: For true/false values
-   ```typescript
-   new BooleanField({
-     defaultValue: false
-   })
-   ```
-
-4. **DateTimeField**: For date and time values
-   ```typescript
-   new DateTimeField({
-     defaultValue: 'now()',
-     timezone: 'UTC'
-   })
-   ```
-
-5. **ArrayField**: For array values
-   ```typescript
-   new ArrayField({
-     elementType: 'String',
-     defaultValue: []
-   })
-   ```
-
-### Field Options
-
-All field types support the following options:
-
-- `defaultValue`: Default value for the field
-- `nullable`: Whether the field can be null
-- `expression`: SQL expression for computed fields
-- `materialized`: Whether the field is materialized
-
-## Advanced Connection Management
-
-### Connection Pooling
-
-The `ConnectionManager` implements connection pooling for better performance:
-
-```typescript
-const config: ConnectionConfig = {
-  credentials: {
-    url: 'http://localhost:8123',
-    username: 'default',
-    password: '',
-    database: 'default'
-  },
-  options: {
-    keepAlive: true,
-  }
-}
-```
-
-## Query Operators
-
-The query builder supports various operators for building complex queries. Here's how to use them:
-
-### Comparison Operators
-
-```typescript
-// Greater than
-{ age__gt: 18 } // age > 18
-
-// Less than
-{ age__lt: 65 } // age < 65
-
-// Greater than or equal
-{ age__gte: 18 } // age >= 18
-
-// Less than or equal
-{ age__lte: 65 } // age <= 65
-
-// Not equal
-{ status__ne: 'inactive' } // status != 'inactive'
-```
-
-### String Operators
-
-```typescript
-// Case-insensitive contains
-{ name__icontains: 'john' } // name LIKE '%john%'
-```
-
-### Set Operators
-
-```typescript
-// In set
-{ status__in: ['active', 'pending'] } // status IN ('active', 'pending')
-```
-
-### Logical Operators
-
-```typescript
-// AND operator
-new Q().and([
-  { age__gt: 18 },
-  { status: 'active' }
-])
-// (age > 18 AND status = 'active')
-
-// OR operator
-new Q().or([
-  { status: 'active' },
-  { status: 'pending' }
-])
-// (status = 'active' OR status = 'pending')
-
-// NOT operator
-new Q().not({ status: 'inactive' })
-// NOT (status = 'inactive')
-```
-
-### Complex Queries
-
-You can combine operators to create complex queries:
-
-```typescript
-// Nested conditions with AND and OR
-new Q().and([
-  { age__gt: 18 },
-  new Q().or([
-    { status: 'active' },
-    { status: 'pending' }
-  ])
-])
-// (age > 18 AND (status = 'active' OR status = 'pending'))
-
-// Multiple conditions with NOT
-new Q().not({
-  age__gt: 18,
-  status__in: ['active', 'pending']
-})
-// NOT (age > 18 AND status IN ('active', 'pending'))
-
-// Complex string matching
-new Q().and([
-  { name__icontains: 'john' },
-  { email__icontains: 'example.com' }
-])
-// (name LIKE '%john%' AND email LIKE '%example.com%')
-```
-
-### Edge Cases
-
-```typescript
-// Empty conditions
-new Q().not({}) // No conditions
-
-// Null values
-new Q().not({ name: undefined }) // NOT (name = NULL)
-
-// Boolean values
-new Q().not({ isActive: true }) // NOT (isActive = true)
-
-// Multiple NOT operations
-new Q().not(new Q().not({ id: 1 })) // NOT (NOT (id = 1))
-
-// Empty arrays in IN operator
-new Q().not({ id__in: [] }) // NOT (id IN ())
-```
-
-## API Reference
-
-### Models
-
-- `Model`: Base class for all models
-- `NumberField`: Field type for numeric values
-- `StringField`: Field type for string values
-- `TableDefinition`: Interface for table configuration
-
-### Database
-
-- `ConnectionManager`: Manages database connections
-- `ConnectionConfig`: Type for connection configuration
-- `ConnectionCredentials`: Type for connection credentials
-
-### Query Building
-
-- `QueryBuilder`: Build complex SQL queries
-- `Q`: Class for building query conditions
-
-### Migrations
-
-- `MigrationService`: Create and manage migrations
-- `MigrationRunner`: Execute migrations
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-[MIT License](LICENSE)
-
-### Array Fields and Nested Structures
-
-The ORM supports array fields and nested structures like arrays within tuples. Here's how to use them:
-
-#### Basic Array Fields
-
-```typescript
-class Product extends Model<ProductSchema> {
-  static fields = {
-    id: new NumberField({}),
-    tags: new ArrayField({
-      elementType: new StringField({ defaultValue: '' }),
-      defaultValue: ['new', 'featured'],
-    }),
-    prices: new ArrayField({
-      elementType: new NumberField({ defaultValue: 0 }),
-      defaultValue: [10, 20, 30],
-    }),
-  }
-}
-```
-
-#### Nested Arrays
-
-You can create arrays of arrays for more complex data structures:
-
-```typescript
-class Matrix extends Model<MatrixSchema> {
-  static fields = {
-    id: new NumberField({}),
-    data: new ArrayField({
-      elementType: new ArrayField({
-        elementType: new NumberField({ defaultValue: 0 }),
-        defaultValue: [],
-      }),
-      defaultValue: [[1, 2], [3, 4]],
-    }),
-  }
-}
-```
-
-#### Tuples with Arrays
-
-You can combine tuples and arrays for complex nested structures:
-
-```typescript
-class UserProfile extends Model<UserProfileSchema> {
-  static fields = {
-    id: new NumberField({}),
-    preferences: new TupleField({
-      fields: {
-        name: new StringField({ defaultValue: '' }),
-        favoriteNumbers: new ArrayField({
-          elementType: new NumberField({ defaultValue: 0 }),
-          defaultValue: [1, 2, 3],
-        }),
-      },
-    }),
-  }
-}
-```
-
-The above will generate a schema with a tuple field containing a string and an array of numbers:
-```sql
-Tuple(name String, favoriteNumbers Array(Int32))
-```
-
-#### Tuple Filtering
-
-You can filter on tuple fields using dot notation to access nested fields. Here are some examples:
-
-```typescript
-// Filter on a simple tuple field
-class AddressModel extends Model<AddressSchema> {
-  static fields = {
-    id: new NumberField({}),
-    address: new TupleField({
-      fields: {
-        street: new StringField({ defaultValue: '' }),
-        city: new StringField({ defaultValue: '' }),
-        zip: new NumberField({ defaultValue: 0 }),
-      },
-    }),
-  }
-}
-
-// Filter by city
-const query = addressModel.objects.filter({
-  'address.city': 'New York'
-})
-
-// Filter with comparison operators
-const query = addressModel.objects.filter({
-  address: {
-    zip__gt: 10000,
-  }
-})
-
-// Filter on nested tuples
-class LocationModel extends Model<LocationSchema> {
-  static fields = {
-    id: new NumberField({}),
-    location: new TupleField({
-      fields: {
-        coordinates: new TupleField({
-          fields: {
-            lat: new NumberField({ defaultValue: 0 }),
-            lon: new NumberField({ defaultValue: 0 }),
-          },
-        }),
-        name: new StringField({ defaultValue: '' }),
-      },
-    }),
-  }
-}
-
-// Filter on nested tuple fields
-const query = locationModel.objects.filter({
-  location: {
-    coordinates: {
-      lat__gt: 40.0,
-      lon__lt: -73.0
-    },
-  }
-})
-
-// Filter with multiple conditions
-const query = locationModel.objects.filter(
-  new Q<LocationSchema>().and([
-    { location: { coordinates: { lat__gt: 40.0 } } },
-    { location: { name__icontains: 'Central' } }
-  ])
-)
-```
-
-The above queries will generate SQL like:
-```sql
--- Simple tuple filter
-SELECT * FROM address_model WHERE address.city = 'New York'
-
--- Nested tuple filter
-SELECT * FROM location_model WHERE location.coordinates.lat > 40.0 AND location.coordinates.lon < -73.0
-```
-
-#### Default Values
-
-Array fields support default values at both the array and element level:
-
-```typescript
-new ArrayField({
-  elementType: new StringField({ defaultValue: 'default' }), // Element default
-  defaultValue: ['value1', 'value2'], // Array default
-})
 ```

@@ -1,29 +1,22 @@
 import {
-  StringFieldTypes,
-  NumberFieldTypes,
-  BooleanFieldTypes,
   TupleFieldTypes,
   ArrayFieldTypes,
   TupleValue,
   PrimitiveValue,
+  FieldType,
 } from './field-types'
+
+export type DefaultValue =
+  | string
+  | number
+  | boolean
+  | Record<string, TupleValue>
+  | PrimitiveValue[]
 
 export interface BaseFieldOptions {
   expression?: string
-  defaultValue?:
-    | string
-    | number
-    | boolean
-    | Record<string, TupleValue>
-    | PrimitiveValue[]
+  defaultValue?: DefaultValue
 }
-
-export type FieldType =
-  | StringFieldTypes
-  | NumberFieldTypes
-  | BooleanFieldTypes
-  | TupleFieldTypes
-  | ArrayFieldTypes
 
 export abstract class Field {
   protected name: string = ''
@@ -80,14 +73,7 @@ export abstract class Field {
       : ''
   }
 
-  private _getDefaultValueStatement(
-    value:
-      | string
-      | number
-      | boolean
-      | Record<string, TupleValue>
-      | PrimitiveValue[],
-  ): string {
+  private _getDefaultValueStatement(value: DefaultValue): string {
     switch (typeof value) {
       case 'string':
         return `'${value}'`
