@@ -50,7 +50,7 @@ class BaseQueryBuilder {
     if (condition.operator === SqlOperators.IN) {
       const values = Array.isArray(condition.value)
         ? condition.value.length === 0
-          ? '()'
+          ? '(NULL)' // Changed from '()' to '(NULL)' to handle empty array case
           : `('${condition.value.join("', '")}')`
         : condition.value
       return `${condition.field} IN ${values}`
@@ -76,7 +76,9 @@ class BaseQueryBuilder {
     if (value === undefined || value === null) return 'NULL'
     if (typeof value === 'string') return `'${value}'`
     if (Array.isArray(value)) {
-      return value.length === 0 ? '()' : `('${value.join("', '")}')`
+      return value.length === 0
+        ? '(NULL)' // Changed from '()' to '(NULL)'
+        : `('${value.join("', '")}')`
     }
     return String(value)
   }
@@ -87,10 +89,8 @@ export class Q<T extends Record<string, unknown>> extends BaseQueryBuilder {
   private groupCounter: number = 0
 
   private parseNestedField(field: string, value: any): Condition[] {
-    const conditions: Condition[] = []
-
-    const processNestedObject = (obj: any, prefix: string) => {
-      const nestedConditions: Condition[] = []
+    const processNestedObject = (obj: any, prefix: string): Condition[] => {
+      const conditions: Condition[] = []
       Object.entries(obj).forEach(([key, val]) => {
         if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
           const childConditions = processNestedObject(val, `${prefix}.${key}`)
@@ -114,7 +114,7 @@ export class Q<T extends Record<string, unknown>> extends BaseQueryBuilder {
             processedValue = Array.isArray(val) ? val : [val]
           }
 
-          nestedConditions.push({
+          conditions.push({
             field: actualField,
             value: processedValue,
             operator,
@@ -122,21 +122,22 @@ export class Q<T extends Record<string, unknown>> extends BaseQueryBuilder {
           })
         }
       })
-      return nestedConditions
+      return conditions
     }
 
     const nestedConditions = processNestedObject(value, field)
     if (nestedConditions.length > 0) {
-      conditions.push({
-        field: '',
-        value: nestedConditions,
-        operator: LogicalOperators.AND,
-        isNested: true,
-        logicalOperator: LogicalOperators.AND,
-      })
+      return [
+        {
+          field: '',
+          value: nestedConditions,
+          operator: LogicalOperators.AND,
+          isNested: true,
+          logicalOperator: LogicalOperators.AND,
+        },
+      ]
     }
-
-    return conditions
+    return []
   }
 
   private parseConditionField(field: string, value: any): Condition {
@@ -149,46 +150,6 @@ export class Q<T extends Record<string, unknown>> extends BaseQueryBuilder {
       operator,
       logicalOperator: LogicalOperators.AND,
       groupId: this.groupCounter,
-    }
-  }
-
-  private addNestedConditions(
-    entries: [string, any][],
-    logicalOperator: LogicalOperator,
-    groupId: number,
-  ) {
-    if (entries.length === 0) return
-
-    const nestedConditions = entries.flatMap(([field, value]) => {
-      if (
-        typeof value === 'object' &&
-        value !== null &&
-        !Array.isArray(value)
-      ) {
-        return this.parseNestedField(field, value)
-      }
-      return [this.parseConditionField(field, value)]
-    })
-
-    if (logicalOperator === LogicalOperators.NOT) {
-      // For NOT operations, we need to preserve the AND relationship between conditions because the NOT operator is applied to the entire condition
-      this.whereConditions.push({
-        field: '',
-        value: nestedConditions,
-        operator: LogicalOperators.AND,
-        isNested: true,
-        logicalOperator: LogicalOperators.NOT,
-        groupId,
-      })
-    } else {
-      this.whereConditions.push({
-        field: '',
-        value: nestedConditions,
-        operator: logicalOperator,
-        isNested: true,
-        logicalOperator,
-        groupId,
-      })
     }
   }
 
@@ -209,11 +170,24 @@ export class Q<T extends Record<string, unknown>> extends BaseQueryBuilder {
         groupId,
       })
     } else {
-      this.addNestedConditions(
-        Object.entries(condition),
+      const entries = Object.entries(condition)
+      const nestedConditions = entries.flatMap(([field, value]) =>
+        typeof value === 'object' && value !== null && !Array.isArray(value)
+          ? this.parseNestedField(field, value)
+          : [this.parseConditionField(field, value)],
+      )
+
+      this.whereConditions.push({
+        field: '',
+        value: nestedConditions,
+        operator:
+          logicalOperator === LogicalOperators.NOT
+            ? LogicalOperators.AND
+            : logicalOperator,
+        isNested: true,
         logicalOperator,
         groupId,
-      )
+      })
     }
   }
 
@@ -222,47 +196,13 @@ export class Q<T extends Record<string, unknown>> extends BaseQueryBuilder {
     logicalOperator: LogicalOperator,
   ) {
     const groupId = ++this.groupCounter
-    if (Array.isArray(conditions)) {
-      conditions.forEach((condition) => {
-        if (condition instanceof Q) {
-          // For Q instances in an array, we need to preserve their internal operator
-          this.addCondition(condition, logicalOperator, groupId)
-        } else {
-          // For plain objects, use the parent logical operator
-          this.addNestedConditions(
-            Object.entries(condition),
-            logicalOperator,
-            groupId,
-          )
-        }
-      })
-    } else {
-      if (conditions instanceof Q) {
-        this.addCondition(conditions, logicalOperator, groupId)
-      } else {
-        // Handle nested objects in Q class
-        const nestedConditions = Object.entries(conditions).flatMap(
-          ([field, value]) => {
-            if (
-              typeof value === 'object' &&
-              value !== null &&
-              !Array.isArray(value)
-            ) {
-              return this.parseNestedField(field, value)
-            }
-            return [this.parseConditionField(field, value)]
-          },
-        )
 
-        this.whereConditions.push({
-          field: '',
-          value: nestedConditions,
-          operator: logicalOperator,
-          isNested: true,
-          logicalOperator,
-          groupId,
-        })
-      }
+    if (Array.isArray(conditions)) {
+      conditions.forEach((condition) =>
+        this.addCondition(condition, logicalOperator, groupId),
+      )
+    } else {
+      this.addCondition(conditions, logicalOperator, groupId)
     }
     return this
   }
@@ -276,27 +216,7 @@ export class Q<T extends Record<string, unknown>> extends BaseQueryBuilder {
   }
 
   public not(conditions: Q<T> | WithOperators<Partial<T>>) {
-    const groupId = ++this.groupCounter
-    if (conditions instanceof Q) {
-      // Preserve the original operator in NOT operations
-      const operator =
-        conditions.whereConditions[0]?.logicalOperator || LogicalOperators.AND
-      this.whereConditions.push({
-        field: '',
-        value: conditions.whereConditions,
-        operator,
-        isNested: true,
-        logicalOperator: LogicalOperators.NOT,
-        groupId,
-      })
-    } else {
-      this.addNestedConditions(
-        Object.entries(conditions),
-        LogicalOperators.NOT,
-        groupId,
-      )
-    }
-    return this
+    return this.handleConditions(conditions, LogicalOperators.NOT)
   }
 }
 
@@ -480,10 +400,10 @@ export class QueryBuilder<
         .map((c) => this.buildCondition(c))
         .join(` ${condition.operator} `)
 
-      const baseCondition = `(${nestedConditions})`
+      const baseCondition = nestedConditions ? `(${nestedConditions})` : 'NULL'
 
       return condition.logicalOperator === LogicalOperators.NOT
-        ? `(NOT (${nestedConditions}))`
+        ? `(NOT ${baseCondition})`
         : baseCondition
     }
 

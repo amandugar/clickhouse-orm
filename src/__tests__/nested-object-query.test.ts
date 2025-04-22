@@ -135,7 +135,7 @@ describe('Nested Object Query', () => {
     )
 
     expect(query.getQuery()).toBe(
-      "SELECT * FROM users WHERE ((((profile.name.first = 'Aman') AND (profile.name.last = 'Dugar'))) AND (((profile.contact.email = 'aman@example.com') AND (profile.contact.phone = '1234567890'))))",
+      "SELECT * FROM users WHERE (((((profile.name.first = 'Aman') AND (profile.name.last = 'Dugar')))) AND ((((profile.contact.email = 'aman@example.com') AND (profile.contact.phone = '1234567890')))))",
     )
   })
 
@@ -162,7 +162,7 @@ describe('Nested Object Query', () => {
     )
 
     expect(query.getQuery()).toBe(
-      "SELECT * FROM users WHERE ((((profile.name.first = 'Aman') AND (profile.name.last = 'Dugar'))) OR (((profile.contact.email = 'test@example.com') AND (profile.contact.phone = '1234567890'))))",
+      "SELECT * FROM users WHERE (((((profile.name.first = 'Aman') AND (profile.name.last = 'Dugar')))) OR ((((profile.contact.email = 'test@example.com') AND (profile.contact.phone = '1234567890')))))",
     )
   })
 
@@ -179,7 +179,7 @@ describe('Nested Object Query', () => {
     )
 
     expect(query.getQuery()).toBe(
-      "SELECT * FROM users WHERE (NOT (((profile.name.first = 'Aman') AND (profile.name.last = 'Dugar'))))",
+      "SELECT * FROM users WHERE (NOT ((((profile.name.first = 'Aman') AND (profile.name.last = 'Dugar')))))",
     )
   })
 
@@ -217,7 +217,7 @@ describe('Nested Object Query', () => {
     )
 
     expect(query.getQuery()).toBe(
-      "SELECT * FROM users WHERE ((((profile.name.first = 'Aman') AND (profile.name.last = 'Dugar'))) AND ((((profile.contact.email = 'aman@example.com') AND (profile.contact.phone = '1234567890'))) OR (((profile.address.city = 'New York') AND (profile.address.street = '123 Main St') AND (profile.address.country = 'USA')))))",
+      "SELECT * FROM users WHERE (((((profile.name.first = 'Aman') AND (profile.name.last = 'Dugar')))) AND (((((profile.contact.email = 'aman@example.com') AND (profile.contact.phone = '1234567890')))) OR ((((profile.address.city = 'New York') AND (profile.address.street = '123 Main St') AND (profile.address.country = 'USA'))))))",
     )
   })
 
@@ -254,7 +254,7 @@ describe('Nested Object Query', () => {
     )
 
     expect(query.getQuery()).toBe(
-      "SELECT * FROM users WHERE ((((profile.name.first LIKE '%Aman%') AND (profile.name.last LIKE '%Dugar%'))) AND ((((profile.contact.email IN ('aman@example.com', 'test@example.com')) AND (profile.contact.phone LIKE '%123%'))) OR (((profile.address.city LIKE '%New York%') AND (profile.address.street LIKE '%Main%')))))",
+      "SELECT * FROM users WHERE (((((profile.name.first LIKE '%Aman%') AND (profile.name.last LIKE '%Dugar%')))) AND (((((profile.contact.email IN ('aman@example.com', 'test@example.com')) AND (profile.contact.phone LIKE '%123%')))) OR ((((profile.address.city LIKE '%New York%') AND (profile.address.street LIKE '%Main%'))))))",
     )
   })
 
