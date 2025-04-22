@@ -10,6 +10,17 @@ import { NumberTypes } from './models/fields/number-field'
 import { StringTypes } from './models/fields/string-field'
 import { BooleanTypes } from './models/fields/boolean-field'
 
+// Export all types first
+export * from './models/fields/base-field'
+export * from './models/types/table-definition'
+export * from './models/fields/boolean-field'
+export * from './models/fields/number-field'
+export * from './models/fields/string-field'
+export * from './models/fields/array-field'
+export * from './models/fields/tuple-field'
+export * from './services/types'
+
+// Export main classes and types
 export {
   Model,
   ConnectionManager,
@@ -18,18 +29,6 @@ export {
   MigrationService,
   MigrationRunner,
 }
-
-// Export types
-export * from './models/fields/base-field'
-export * from './models/types/table-definition'
-export * from './models/model'
-export * from './services/types'
-export * from './models/fields/boolean-field'
-export * from './models/fields/number-field'
-export * from './models/fields/string-field'
-export * from './models/fields/array-field'
-export * from './models/fields/tuple-field'
-export * from './models/model'
 
 export const Types = {
   Number: NumberTypes,
