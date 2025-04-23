@@ -31,7 +31,6 @@ import {
   TableDefinition,
 } from '../models'
 import { Schema, SchemaChanges } from '../models/model'
-import { memoize } from 'lodash'
 import { FieldsOf } from '../models/types/table-definition'
 import { MigrationRunner } from './MigrationRunner'
 import {
@@ -47,6 +46,20 @@ import { SchemaColumn } from './types'
 type Migration = {
   name: string
   timestamp: number
+}
+/**
+ * Creates a memoized version of a function that caches its results
+ * @param fn - The function to memoize
+ * @returns A memoized version of the function
+ */
+function memoize<T>(fn: () => T): () => T {
+  let cache: T | null = null
+  return () => {
+    if (cache === null) {
+      cache = fn()
+    }
+    return cache
+  }
 }
 
 /**
