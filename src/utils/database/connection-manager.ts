@@ -1,5 +1,15 @@
 import { ClickHouseClient, createClient } from '@clickhouse/client'
-import crypto from 'crypto'
+// Internal implementation of crypto functionality
+
+const generateHash = (str: string): string => {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i)
+    hash = (hash << 5) - hash + char
+    hash = hash & hash // Convert to 32bit integer
+  }
+  return hash.toString(16)
+}
 
 /**
  * Interface for connection credentials
@@ -66,10 +76,7 @@ export class ConnectionManager<
   public static getInstance<T extends ConnectionCredentials>(
     config: ConnectionConfig<T>,
   ): ConnectionManager<T> {
-    const hash = crypto
-      .createHash('sha256')
-      .update(JSON.stringify(config.credentials))
-      .digest('hex')
+    const hash = generateHash(JSON.stringify(config.credentials))
 
     if (!this.instances.has(hash)) {
       this.instances.set(hash, new ConnectionManager<T>(config))

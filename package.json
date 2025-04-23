@@ -1,15 +1,16 @@
 {
   "name": "thunder-schema",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "description": "A TypeScript ORM for ClickHouse with migrations support",
   "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
+    "dist/index.js",
+    "dist/cli/index.js",
+    "dist/index.d.ts",
+    "README.md"
   ],
   "private": false,
   "main": "dist/index.js",
-  "module": "dist/index.mjs",
+  "module": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
     "thunder-schema": "dist/cli/index.js"
@@ -49,15 +50,11 @@
   "homepage": "https://github.com/amandugar/clickhouse-orm#readme",
   "dependencies": {
     "@clickhouse/client": "^1.11.1",
-    "crypto": "^1.0.1",
-    "import-fresh": "^3.3.1",
-    "lodash": "^4.17.21",
     "path": "^0.12.7"
   },
   "devDependencies": {
     "@tsconfig/node20": "^20.1.5",
     "@types/jest": "^29.5.14",
-    "@types/lodash": "^4.17.16",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
     "eslint": "^8.0.0",
@@ -68,8 +65,7 @@
     "rimraf": "^5.0.0",
     "ts-jest": "^29.3.2",
     "ts-node": "^10.9.2",
-    "tsup": "^8.4.0",
-    "typescript": "^5.8.3"
+    "tsup": "^8.4.0"
   },
   "engines": {
     "node": ">=18.17.1"
