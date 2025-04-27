@@ -78,6 +78,7 @@ export type WithOperators<T> = {
     | Partial<T[K]>
     | Partial<WithOperators<T[K]>>
     | Partial<T[K]>[]
+    | QueryBuilder<any, any>
 }
 
 /**
@@ -110,6 +111,11 @@ class BaseQueryBuilder {
    */
   public buildBaseCondition(condition: Condition): string {
     if (condition.operator === SqlOperators.IN) {
+      if (condition.value instanceof QueryBuilder) {
+        // If the value is a QueryBuilder instance, use its buildQuery method
+        return `${condition.field} IN (${condition.value.buildQuery()})`
+      }
+
       const values = Array.isArray(condition.value)
         ? condition.value.length === 0
           ? '(NULL)' // Handle empty array case
@@ -452,9 +458,13 @@ export class QueryBuilder<
 
   /**
    * Parses a filter condition from a field and value
-   * @param field - The field name
-   * @param value - The value to filter by
-   * @returns A Condition object or array of conditions
+   * @param field - The field name with optional operator suffix (e.g. "name__contains")
+   * @param value - The value to filter by, can be a primitive value, array, or nested object
+   * @returns A Condition object for simple conditions or array of conditions for nested objects
+   * @description
+   * This method handles both simple and nested filter conditions. For simple conditions,
+   * it creates a single Condition object. For nested objects, it recursively processes
+   * the nested structure to create multiple conditions.
    */
   private parseFilterCondition(
     field: string,
@@ -462,47 +472,110 @@ export class QueryBuilder<
   ): Condition | Condition[] {
     const { key, operator } = this.parseFieldAndOperator(field)
 
-    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-      const conditions: Condition[] = []
+    if (!this.isNestedObject(value)) {
+      return this.createSimpleCondition(key, value, operator)
+    }
 
-      const processNestedObject = (obj: any, prefix: string) => {
-        Object.entries(obj).forEach(([key, val]) => {
-          const { key: fieldName, operator } = this.parseFieldAndOperator(key)
-          const fullField = prefix ? `${prefix}.${fieldName}` : fieldName
-          if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
-            processNestedObject(val, fullField)
-          } else {
-            let processedValue = val
-            if (operator === SqlOperators.LIKE) {
-              processedValue = `%${val}%`
-            } else if (operator === SqlOperators.IN) {
-              processedValue = Array.isArray(val) ? val : [val]
-            }
+    const conditions: Condition[] = []
+    this.processNestedObject(value, key, conditions)
+    return conditions
+  }
 
-            conditions.push({
-              field: fullField,
-              value: processedValue,
-              operator,
-              logicalOperator: LogicalOperators.AND,
-            })
-          }
+  /**
+   * Checks if a value is a nested object that needs recursive processing
+   * @param value - The value to check
+   * @returns boolean indicating if the value is a nested object
+   * @description
+   * Determines if a value is a plain object (not null, array, or QueryBuilder instance)
+   * that contains nested filter conditions.
+   */
+  private isNestedObject(value: any): boolean {
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      !Array.isArray(value) &&
+      !(value instanceof QueryBuilder)
+    )
+  }
+
+  /**
+   * Recursively processes a nested object to extract filter conditions
+   * @param obj - The nested object to process
+   * @param prefix - The field name prefix for nested fields
+   * @param conditions - Array to collect the resulting conditions
+   * @description
+   * Processes each key-value pair in the object. For nested objects, it recursively
+   * processes them with an updated field prefix. For simple values, it creates
+   * conditions with the appropriate field name and processed value.
+   */
+  private processNestedObject(
+    obj: any,
+    prefix: string,
+    conditions: Condition[],
+  ): void {
+    Object.entries(obj).forEach(([key, val]) => {
+      const { key: fieldName, operator } = this.parseFieldAndOperator(key)
+      const fullField = prefix ? `${prefix}.${fieldName}` : fieldName
+
+      if (this.isNestedObject(val)) {
+        this.processNestedObject(val, fullField, conditions)
+      } else {
+        const processedValue = this.processValue(val, operator)
+        conditions.push({
+          field: fullField,
+          value: processedValue,
+          operator,
+          logicalOperator: LogicalOperators.AND,
         })
       }
+    })
+  }
 
-      processNestedObject(value, key)
-      return conditions
-    }
-
-    let processedValue = value
+  /**
+   * Processes a value based on the operator type
+   * @param value - The value to process
+   * @param operator - The SQL operator being used
+   * @returns The processed value appropriate for the operator
+   * @description
+   * Handles special cases for different operators:
+   * - LIKE: Wraps value in % for pattern matching
+   * - IN: Handles arrays and QueryBuilder instances
+   * - Other operators: Returns value as-is
+   */
+  private processValue(value: any, operator: SqlOperators): any {
     if (operator === SqlOperators.LIKE) {
-      processedValue = `%${value}%`
-    } else if (operator === SqlOperators.IN) {
-      processedValue = Array.isArray(value) ? value : [value]
+      return `%${value}%`
     }
+    if (operator === SqlOperators.IN) {
+      if (value instanceof QueryBuilder) {
+        return value
+      }
+      if (Array.isArray(value)) {
+        return value
+      }
+      return [value]
+    }
+    return value
+  }
 
+  /**
+   * Creates a simple condition object
+   * @param field - The field name
+   * @param value - The value to filter by
+   * @param operator - The SQL operator to use
+   * @returns A Condition object with the specified parameters
+   * @description
+   * Creates a basic condition object with the given field, processed value,
+   * operator, and default AND logical operator.
+   */
+  private createSimpleCondition(
+    field: string,
+    value: unknown,
+    operator: SqlOperators,
+  ): Condition {
     return {
-      field: key,
-      value: processedValue,
+      field,
+      value: this.processValue(value, operator),
       operator,
       logicalOperator: LogicalOperators.AND,
     }
@@ -651,13 +724,19 @@ export class QueryBuilder<
         .join(', ')}`
     }
 
-    return `SELECT ${this._project} FROM ${this.tableName} ${
+    let query = `SELECT ${this._project} FROM ${this.tableName} ${
       this._final ? `FINAL ` : ''
-    }${
-      whereClause ? `WHERE ${whereClause}` : ''
-    }${buildSort()}${this._offset ? ` OFFSET ${this._offset}` : ''}${
-      this._limit ? ` LIMIT ${this._limit}` : ''
     }`
+
+    if (whereClause) {
+      query += `WHERE ${whereClause}`
+    }
+
+    query += buildSort()
+    if (this._offset) query += ` OFFSET ${this._offset}`
+    if (this._limit) query += ` LIMIT ${this._limit}`
+
+    return query
   }
 
   /**
@@ -703,6 +782,7 @@ export class QueryBuilder<
       })
       return true
     } catch (error) {
+      console.error(error)
       return false
     }
   }

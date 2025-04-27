@@ -113,9 +113,9 @@ export class MigrationService {
     const migrations = this.migrations()
     return migrations.map((migration) => {
       const filePath = path.resolve(`${this.migrationsPath}/${migration}`)
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       require('ts-node').register()
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const diff = require(filePath).diff
       return diff
     })
@@ -304,9 +304,9 @@ export class MigrationService {
       }
 
       // Import the models dynamically
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       require('ts-node').register()
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const models = require(absolutePath)
 
       console.log(`Generating schema from ${modelPath}:`)
@@ -322,10 +322,7 @@ export class MigrationService {
 
       // Generate schemas for each model
       for (const [modelName, ModelClass] of modelEntries) {
-        const model: typeof Model<any, any> = ModelClass as typeof Model<
-          any,
-          any
-        >
+        const model: typeof Model = ModelClass as typeof Model
         if (typeof model.generateSchema !== 'function') {
           console.error(
             `Error: ${modelName} does not have a generateSchema method`,
@@ -395,7 +392,7 @@ export class MigrationService {
 
     // Apply each pending migration
     for (const migration of migrationsToApply) {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const diff = require(path.resolve(`${this.migrationsPath}/${migration}`))
         .diff as SchemaChanges
 

@@ -21,7 +21,7 @@ export class TupleField<T extends TupleType> extends Field {
   constructor(
     options: { fields: FieldsOf<T> } & Omit<TupleFieldOptions<T>, 'fields'>,
   ) {
-    const defaultValue = {} as Record<string, any>
+    const defaultValue = {} as Record<string, unknown>
     Object.entries(options.fields).forEach(([key, field]) => {
       defaultValue[key] = field.getOptions().defaultValue
     })
