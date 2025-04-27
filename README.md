@@ -44,7 +44,6 @@ A TypeScript ORM for ClickHouse databases with type-safety at its core.
 Thunder Schema is a TypeScript ORM for ClickHouse that provides a simple and type-safe way to interact with ClickHouse databases. It features type-safe model definitions, a powerful query builder, migration support, connection management, and a TypeScript-first approach.
 
 ## Installation
-
 ```bash
 npm install thunder-schema
 # or
@@ -267,12 +266,12 @@ const activeUsers = await User.objects
 
 ```typescript
 // Sort by a single field
-const users = await User.objects
+const users = await new User().objects
   .sort({ createdAt: -1 }) // -1 for descending, 1 for ascending
   .all()
 
 // Sort by multiple fields
-const users = await User.objects
+const users = await new User().objects
   .sort({
     isActive: -1,  // Active users first
     createdAt: 1   // Then by creation date ascending
@@ -284,10 +283,10 @@ const users = await User.objects
 
 ```typescript
 // Count all users
-const totalUsers = await User.objects.count()
+const totalUsers = await new User().objects.count()
 
 // Count with filters
-const activeUsers = await User.objects
+const activeUsers = await new User().objects
   .filter({ isActive: true })
   .count()
 ```
@@ -296,10 +295,10 @@ const activeUsers = await User.objects
 
 ```typescript
 // Get first user
-const firstUser = await User.objects.first()
+const firstUser = await new User().objects.first()
 
 // Get first active user
-const firstActiveUser = await User.objects
+const firstActiveUser = await new User().objects
   .filter({ isActive: true })
   .first()
 ```
@@ -339,7 +338,7 @@ const finalUsers = await User.objects
 import { Q } from 'thunder-schema'
 
 // Simple OR conditions
-const query = User.objects.filter(
+const query = new User().objects.filter(
   new Q<User>().or([
     { id: 1 },
     { id: 2 }
@@ -347,7 +346,7 @@ const query = User.objects.filter(
 )
 
 // Complex nested conditions
-const complexQuery = User.objects.filter(
+const complexQuery = new User().objects.filter(
   new Q<User>().or([
     new Q<User>().and([{ id: 1 }, { name: 'John' }]),
     new Q<User>().not(
@@ -355,6 +354,17 @@ const complexQuery = User.objects.filter(
     )
   ])
 )
+
+// Nested queries with Model instances (subqueries)
+const user1 = new UserModel()
+const user2 = new UserModel()
+
+// Create a filtered query
+const filteredQuery = user2.objects.filter({ id__gt: 5 })
+
+// Use the filtered query in an IN condition
+const inQueryWithModel = user1.objects.filter({ id__in: filteredQuery })
+// Generated SQL: SELECT * FROM users WHERE (id IN (SELECT * FROM users WHERE (id > 5)))
 ```
 
 #### Excluding Records
@@ -388,7 +398,7 @@ for await (const user of query) {
   console.log(user)
 }
 
-/const allUsers = await userModel.objects.all()
+const allUsers = await userModel.objects.all()
 
 // Combining with nested queries
 const complexQuery = userModel.objects.filter(
@@ -471,6 +481,11 @@ await user.save()
 ```typescript
 // In set
 { status__in: ['active', 'pending'] } // status IN ('active', 'pending')
+
+// In subquery (using another model's query)
+const filteredQuery = user2.objects.filter({ id__gt: 5 })
+const inQueryWithModel = user1.objects.filter({ id__in: filteredQuery })
+// Generated SQL: SELECT * FROM users WHERE (id IN (SELECT * FROM users WHERE (id > 5)))
 ```
 
 ## Field Types & Options
@@ -1096,6 +1111,7 @@ class LocationModel extends Model<LocationSchema> {
 }
 
 // Filter on nested tuple fields
+const locationModel = new LocationModel()
 const query = locationModel.objects.filter({
   location: {
     coordinates: {

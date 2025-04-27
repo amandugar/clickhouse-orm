@@ -498,4 +498,18 @@ describe('Model', () => {
       'SELECT * FROM users WHERE (NOT ((id IN (NULL))))',
     )
   })
+
+  it('should handle IN operator with Model instances', async () => {
+    const user1 = new UserModel()
+    const user2 = new UserModel()
+
+    // Create a filtered query
+    const filteredQuery = user2.objects.filter({ id__gt: 5 })
+
+    // Use the filtered query in an IN condition
+    const inQueryWithModel = user1.objects.filter({ id__in: filteredQuery })
+    expect(inQueryWithModel.getQuery()).toBe(
+      'SELECT * FROM users WHERE (id IN (SELECT * FROM users WHERE (id > 5)))',
+    )
+  })
 })

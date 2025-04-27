@@ -67,7 +67,10 @@ export interface ModelType {
   [key: string]: any
 }
 
-export abstract class Model<T extends ModelType, M extends ModelType = T> {
+export abstract class Model<
+  T extends ModelType = ModelType,
+  M extends ModelType = ModelType,
+> {
   protected static fields: FieldsOf<any> = {}
   public static tableDefinition: TableDefinition<any>
   public connectionConfig?: ConnectionConfig
