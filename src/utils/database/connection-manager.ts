@@ -62,8 +62,8 @@ export class ConnectionManager<
     return this.defaultInstance
   }
 
-  public static createDatabase(name: string): void {
-    this.getDefault().with((client) => {
+  public static async createDatabase(name: string): Promise<void> {
+    await this.getDefault().with((client) => {
       return client.query({
         query: `CREATE DATABASE IF NOT EXISTS ${name}`,
       })

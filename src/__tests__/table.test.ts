@@ -60,7 +60,7 @@ const credentials: ConnectionCredentials = {
 describe('Model', () => {
   beforeAll(async () => {
     ConnectionManager.setDefault({ credentials })
-    ConnectionManager.createDatabase('test')
+    await ConnectionManager.createDatabase('test')
   })
 
   it('should create a table statement', async () => {
@@ -140,6 +140,15 @@ describe('Model', () => {
     )
 
     const query = new UserModel()
+
+    // Create test data first
+    const testUser = query.create({
+      id: 1,
+      name: 'John',
+      email: 'john@test.com',
+      isActive: true,
+    })
+    await testUser.save()
 
     const queryData2 = query.objects.filter(
       new Q<User>().or([
