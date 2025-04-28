@@ -18,6 +18,7 @@ A TypeScript ORM for ClickHouse databases with type-safety at its core.
    - [Query Methods](#query-methods)
    - [Advanced Queries](#advanced-queries)
    - [Query Operators](#query-operators)
+   - [Aggregations](#aggregations)
 6. [Field Types & Options](#field-types--options)
    - [Basic Field Types](#basic-field-types)
    - [Common Options](#common-options)
@@ -480,12 +481,119 @@ await user.save()
 
 ```typescript
 // In set
-{ status__in: ['active', 'pending'] } // status IN ('active', 'pending')
+{ status__in: ["active", "pending"] } // status IN ('active', 'pending')
 
 // In subquery (using another model's query)
 const filteredQuery = user2.objects.filter({ id__gt: 5 })
 const inQueryWithModel = user1.objects.filter({ id__in: filteredQuery })
 // Generated SQL: SELECT * FROM users WHERE (id IN (SELECT * FROM users WHERE (id > 5)))
+```
+
+### Aggregations
+
+Thunder Schema provides a powerful aggregation system that supports both basic aggregations and arithmetic operations. Here's how to use it:
+
+#### Basic Aggregations
+
+```typescript
+// Basic aggregations with aliases
+const result = await Sale.objects
+  .filter({ price__gt: 100 })
+  .aggregate({
+    total_revenue: new Sum("price", "total_revenue"),
+    avg_price: new Avg("price", "avg_price"),
+    total_sales: new Count("*", "total_sales"),
+    min_price: new Min("price", "min_price"),
+    max_price: new Max("price", "max_price"),
+  })
+  .all()
+
+// Result will be an array with one object containing:
+// {
+//   total_revenue: number,
+//   avg_price: number,
+//   total_sales: number,
+//   min_price: number,
+//   max_price: number
+// }
+```
+
+#### Arithmetic Operations
+
+You can perform arithmetic operations on aggregation results:
+
+```typescript
+// Addition
+const result = await Sale.objects
+  .filter({ price__gt: 100 })
+  .aggregate({
+    total_revenue: new Sum("price", "total_revenue"),
+    total_quantity: new Sum("quantity", "total_quantity"),
+    total_with_addition: add(
+      new Sum("price", "total_revenue"),
+      new Sum("quantity", "total_quantity")
+    ),
+  })
+  .all()
+
+// Subtraction
+const result = await Sale.objects
+  .aggregate({
+    revenue_minus_quantity: subtract(
+      new Sum("price", "total_revenue"),
+      new Sum("quantity", "total_quantity")
+    ),
+  })
+  .all()
+
+// Multiplication
+const result = await Sale.objects
+  .aggregate({
+    revenue_times_quantity: multiply(
+      new Sum("price", "total_revenue"),
+      new Sum("quantity", "total_quantity")
+    ),
+  })
+  .all()
+
+// Division
+const result = await Sale.objects
+  .aggregate({
+    average_price_per_quantity: divide(
+      new Sum("price", "total_revenue"),
+      new Sum("quantity", "total_quantity")
+    ),
+  })
+  .all()
+```
+
+#### Complex Arithmetic Expressions
+
+You can combine multiple arithmetic operations:
+
+```typescript
+const result = await Sale.objects
+  .filter({ price__gt: 100 })
+  .aggregate({
+    complex_calculation: add(
+      multiply(
+        new Sum("price", "total_revenue"),
+        new Sum("quantity", "total_quantity")
+      ),
+      divide(
+        new Sum("price", "total_revenue"),
+        new Sum("quantity", "total_quantity")
+      )
+    ),
+  })
+  .all()
+```
+
+The above will generate SQL like:
+```sql
+SELECT ((SUM(price) * SUM(quantity)) + (SUM(price) / SUM(quantity))) as complex_calculation 
+FROM sales 
+WHERE (price > 100)
 ```
 
 ## Field Types & Options
