@@ -35,7 +35,7 @@ export abstract class DataRetrival<T extends ModelType> {
     }
   }
 
-  private async toArray() {
+  private async toArray(): Promise<T[]> {
     const array: T[] = []
 
     for await (const row of this) {
@@ -45,7 +45,7 @@ export abstract class DataRetrival<T extends ModelType> {
     return array
   }
 
-  public async all() {
+  public async all(): Promise<T[]> {
     return this.toArray()
   }
 }

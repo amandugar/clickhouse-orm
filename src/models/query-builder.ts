@@ -34,6 +34,7 @@ import {
 } from './operators'
 import { Engine } from '../utils'
 import { ConnectionManager } from '../utils/database/connection-manager'
+import { AggregationOperator, AggregationResult } from './aggregation'
 
 /**
  * Represents a SQL or logical operator that can be used in query conditions
@@ -346,7 +347,7 @@ export class Q<T extends ModelType> extends BaseQueryBuilder {
  */
 export class QueryBuilder<
   T extends ModelType,
-  M extends ModelType,
+  M extends ModelType = ModelType,
 > extends DataRetrival<T> {
   private readonly tableName: string
   private readonly engine: Engine
@@ -358,7 +359,7 @@ export class QueryBuilder<
   private readonly connectionConfig?: ConnectionConfig
   private readonly baseQueryBuilder: BaseQueryBuilder
   private _final: boolean = false
-  private _model: typeof Model<T, M>
+  private _model: typeof Model
   private _sort: Record<keyof T, -1 | 1> | undefined = undefined
 
   /**
@@ -367,7 +368,7 @@ export class QueryBuilder<
    * @param options - Optional configuration for the query builder
    */
   constructor(
-    model: typeof Model<T, M>,
+    model: typeof Model,
     options: {
       whereConditions?: Condition[]
       excludeConditions?: Condition[]
@@ -395,10 +396,10 @@ export class QueryBuilder<
    * @param options - The options to update in the clone
    * @returns A new QueryBuilder instance with the updated options
    */
-  private clone(
+  private clone<NewM extends ModelType>(
     options: Partial<ConstructorParameters<typeof QueryBuilder>[1]>,
-  ): QueryBuilder<T, M> {
-    return new QueryBuilder(this._model, {
+  ): QueryBuilder<T, NewM> {
+    return new QueryBuilder<T, NewM>(this._model, {
       whereConditions: this.whereConditions,
       excludeConditions: this.excludeConditions,
       offset: this._offset,
@@ -611,10 +612,9 @@ export class QueryBuilder<
   }
 
   public async count(): Promise<number> {
-    this._project = 'COUNT(*) as count'
-
-    const result = await this.all()
-    return Number(result[0].count)
+    const countQuery = this.clone({ project: 'COUNT(*) as count' })
+    const result = await countQuery.all()
+    return Number(result[0]?.count || 0)
   }
 
   /**
@@ -803,5 +803,36 @@ export class QueryBuilder<
       ...sortData,
     }
     return this
+  }
+
+  /**
+   * Performs aggregation operations on the query results
+   * @param aggregations - Object mapping aliases to aggregation operators
+   * @returns Promise resolving to the aggregation results
+   * @example
+   * ```typescript
+   * const result = await Sale.objects
+   *   .filter({ price__gt: 100 })
+   *   .aggregate({
+   *     total_revenue: new Sum('price'),
+   *     avg_price: new Avg('price')
+   *   })
+   * // { total_revenue: 1500, avg_price: 250 }
+   * ```
+   */
+  public aggregate<P extends Record<string, AggregationOperator>>(
+    aggregations: P,
+  ): QueryBuilder<T, AggregationResult<P>> {
+    const aggregationSql = Object.entries(aggregations)
+      .map(([key, agg]) => {
+        // Use the alias if provided, otherwise use the key
+        const alias = agg.alias || key
+        return `${agg.getSql()} as ${alias}`
+      })
+      .join(', ')
+
+    return this.clone<AggregationResult<P>>({
+      project: aggregationSql,
+    })
   }
 }
