@@ -115,19 +115,9 @@ export class MigrationService {
 
     for (const migration of migrations) {
       const filePath = path.resolve(`${this.migrationsPath}/${migration}`)
-      // Register ts-node with ESM support
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      require('ts-node').register({
-        transpileOnly: true,
-        compilerOptions: {
-          module: 'ESNext',
-          moduleResolution: 'node',
-          target: 'ESNext',
-        },
-        esm: true,
-        experimentalSpecifierResolution: 'node',
-      })
-      // Use dynamic import for ESM modules
+      require('ts-node').register()
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const module = await import(filePath)
       results.push(module.diff)
     }
@@ -398,6 +388,20 @@ export class MigrationService {
       credentials: this.credentials,
     })
 
+    // Register ts-node with proper configuration
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require('ts-node').register({
+      transpileOnly: true,
+      compilerOptions: {
+        module: 'CommonJS',
+        moduleResolution: 'node',
+        target: 'ES2018',
+        esModuleInterop: true,
+        allowJs: true,
+        resolveJsonModule: true,
+      },
+    })
+
     // Get list of applied migrations
     const allMigrations = await new MigrationTable().objects.all()
     const migrationsToApply = this.migrations().filter(
@@ -407,20 +411,9 @@ export class MigrationService {
     // Apply each pending migration
     for (const migration of migrationsToApply) {
       const filePath = path.resolve(`${this.migrationsPath}/${migration}`)
-      // Register ts-node with ESM support
+      // Use require instead of dynamic import
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      require('ts-node').register({
-        transpileOnly: true,
-        compilerOptions: {
-          module: 'ESNext',
-          moduleResolution: 'node',
-          target: 'ESNext',
-        },
-        esm: true,
-        experimentalSpecifierResolution: 'node',
-      })
-      // Use dynamic import for ESM modules
-      const module = await import(filePath)
+      const module = require(filePath)
       const diff = module.diff as SchemaChanges
 
       // Apply each change in the migration
