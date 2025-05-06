@@ -65,17 +65,26 @@ function getCredentials(): ConnectionCredentials {
 
 async function main() {
   try {
+    const timestamp = Date.now()
     const credentials = getCredentials()
     ConnectionManager.setDefault({
       credentials: { ...credentials, database: 'default' },
     })
 
     await program.parseAsync(process.argv)
-    console.log('Operation completed successfully')
+    console.log(
+      `Operation completed successfully in ${Date.now() - timestamp}ms`,
+    )
   } catch (error) {
-    console.error('Error:', error)
-    process.exit(1)
+    throw error
   }
 }
 
 void main()
+  .then(() => {
+    process.exit(0)
+  })
+  .catch((error) => {
+    console.error('Error:', error)
+    process.exit(1)
+  })
