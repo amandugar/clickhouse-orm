@@ -109,16 +109,20 @@ export class MigrationService {
    * Reads and parses all migration files
    * @returns Array of schema changes from all migrations
    */
-  public readMigrations(): SchemaChanges[] {
+  public async readMigrations(): Promise<SchemaChanges[]> {
     const migrations = this.migrations()
-    return migrations.map((migration) => {
+    const results: SchemaChanges[] = []
+
+    for (const migration of migrations) {
       const filePath = path.resolve(`${this.migrationsPath}/${migration}`)
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       require('ts-node').register()
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const diff = require(filePath).diff
-      return diff
-    })
+      const module = await import(filePath)
+      results.push(module.diff)
+    }
+
+    return results
   }
 
   /**
@@ -342,7 +346,7 @@ export class MigrationService {
       }
 
       // Generate and write the migration file
-      const existingMigrations = this.readMigrations()
+      const existingMigrations = await this.readMigrations()
       const mergedMigrations = this.mergeMigrations(existingMigrations)
       const diff = this.diffSchemas(mergedMigrations, currentSchemas)
       const lastFileSorted = this.migrations().sort((a, b) => {
@@ -355,15 +359,15 @@ export class MigrationService {
       }
 
       const fileString = `
-        export const diff = ${JSON.stringify(diff, null, 2)}
+        export const diff = ${JSON.stringify(diff, null, 2)};
         
-        export const dependencies = ${lastFileSorted ? `['${lastFileSorted}']` : `[]`}
+        export const dependencies = ${lastFileSorted ? `['${lastFileSorted}']` : `[]`};
       `
 
-      fs.writeFileSync(
-        path.resolve(`${this.migrationsPath}/${Date.now()}-migration.ts`),
-        fileString,
+      const migrationPath = path.resolve(
+        `${this.migrationsPath}/${Date.now()}-migration.ts`,
       )
+      fs.writeFileSync(migrationPath, fileString, 'utf8')
     } catch (error) {
       console.error('Error generating schema:', error)
       throw error
@@ -392,9 +396,10 @@ export class MigrationService {
 
     // Apply each pending migration
     for (const migration of migrationsToApply) {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const diff = require(path.resolve(`${this.migrationsPath}/${migration}`))
-        .diff as SchemaChanges
+      const module = await import(
+        path.resolve(`${this.migrationsPath}/${migration}`)
+      )
+      const diff = module.diff as SchemaChanges
 
       // Apply each change in the migration
       for (const change of diff) {
