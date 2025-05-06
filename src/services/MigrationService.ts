@@ -115,9 +115,19 @@ export class MigrationService {
 
     for (const migration of migrations) {
       const filePath = path.resolve(`${this.migrationsPath}/${migration}`)
+      // Register ts-node with ESM support
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      require('ts-node').register()
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require('ts-node').register({
+        transpileOnly: true,
+        compilerOptions: {
+          module: 'ESNext',
+          moduleResolution: 'node',
+          target: 'ESNext',
+        },
+        esm: true,
+        experimentalSpecifierResolution: 'node',
+      })
+      // Use dynamic import for ESM modules
       const module = await import(filePath)
       results.push(module.diff)
     }
@@ -396,9 +406,21 @@ export class MigrationService {
 
     // Apply each pending migration
     for (const migration of migrationsToApply) {
-      const module = await import(
-        path.resolve(`${this.migrationsPath}/${migration}`)
-      )
+      const filePath = path.resolve(`${this.migrationsPath}/${migration}`)
+      // Register ts-node with ESM support
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require('ts-node').register({
+        transpileOnly: true,
+        compilerOptions: {
+          module: 'ESNext',
+          moduleResolution: 'node',
+          target: 'ESNext',
+        },
+        esm: true,
+        experimentalSpecifierResolution: 'node',
+      })
+      // Use dynamic import for ESM modules
+      const module = await import(filePath)
       const diff = module.diff as SchemaChanges
 
       // Apply each change in the migration
