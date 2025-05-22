@@ -75,6 +75,7 @@ export abstract class Model<
   protected static fields: FieldsOf<any> = {}
   public static tableDefinition: TableDefinition<any>
   public connectionConfig?: ConnectionConfig
+  private bulkValues: Partial<T>[] = []
 
   public objects: QueryBuilder<T, M>
   public values: Partial<T> = {}
@@ -85,6 +86,10 @@ export abstract class Model<
     this.objects = new QueryBuilder<T, M>(constructor, {
       connectionConfig,
     })
+  }
+
+  public getBulkValuesSize(): number {
+    return this.bulkValues.length
   }
 
   public create(data: Partial<T>): this {
@@ -101,6 +106,8 @@ export abstract class Model<
     }
 
     processFields(constructor['fields'])
+    this.bulkValues.push({ ...this.values })
+    this.values = {}
 
     return this
   }
@@ -174,9 +181,10 @@ export abstract class Model<
     await constructor.withConnection(async (client) => {
       await client.insert({
         table: tableName,
-        values: [this.values],
+        values: this.bulkValues,
         format: 'JSONEachRow',
       })
+      this.bulkValues = [] // Clear bulk values after save
     }, this.connectionConfig)
   }
 }

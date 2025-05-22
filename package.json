@@ -1,6 +1,6 @@
 {
   "name": "thunder-schema",
-  "version": "1.0.19",
+  "version": "1.0.20",
   "description": "A TypeScript ORM for ClickHouse with migrations support",
   "files": [
     "dist/index.js",
