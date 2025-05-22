@@ -9,6 +9,7 @@ import { ClickHouseClient } from '@clickhouse/client'
 import { QueryBuilder } from './query-builder'
 import { TupleField } from './fields/tuple-field'
 import { FieldType, TupleFieldOptions } from './fields/field-types'
+import { ArrayField, ArrayFieldOptions } from './fields/array-field'
 
 /**
  * @description
@@ -106,22 +107,21 @@ export abstract class Model<
 
   public static init(): void {
     Object.entries(this.fields).forEach(([fieldName, field]) => {
-      if (field instanceof TupleField) {
-        const setFieldNamesRecursively = (field: Field, name: string) => {
-          field.setName(name)
-          if (field instanceof TupleField) {
-            const tupleOptions = field.getOptions() as TupleFieldOptions
-            Object.entries(tupleOptions.fields).forEach(
-              ([nestedName, nestedField]) => {
-                setFieldNamesRecursively(nestedField, nestedName)
-              },
-            )
-          }
+      const setFieldNamesRecursively = (field: Field, name: string) => {
+        field.setName(name)
+        if (field instanceof TupleField) {
+          const tupleOptions = field.getOptions() as TupleFieldOptions
+          Object.entries(tupleOptions.fields).forEach(
+            ([nestedName, nestedField]) => {
+              setFieldNamesRecursively(nestedField, nestedName)
+            },
+          )
+        } else if (field instanceof ArrayField) {
+          const arrayOptions = field.getOptions() as ArrayFieldOptions
+          setFieldNamesRecursively(arrayOptions.elementType, name)
         }
-        setFieldNamesRecursively(field, fieldName)
-      } else {
-        field.setName(fieldName)
       }
+      setFieldNamesRecursively(field, fieldName)
     })
 
     if (!this.tableDefinition) {

@@ -13,6 +13,8 @@ export type ArrayColumn<T extends ModelType> = BaseColumn<T> & {
   defaultValue?: T[]
 }
 
+export { ArrayFieldOptions }
+
 export class ArrayField extends Field {
   protected type: FieldType = ArrayFieldTypes.Array
 

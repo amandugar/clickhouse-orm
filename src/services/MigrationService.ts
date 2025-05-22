@@ -40,6 +40,18 @@ import {
 import { Engine } from '../utils/engines/engines'
 import { SchemaColumn } from './types'
 
+const options = {
+  transpileOnly: true,
+  compilerOptions: {
+    module: 'CommonJS',
+    moduleResolution: 'node',
+    target: 'ES2018',
+    esModuleInterop: true,
+    allowJs: true,
+    resolveJsonModule: true,
+  },
+}
+
 /**
  * Represents a migration record in the database
  */
@@ -116,9 +128,9 @@ export class MigrationService {
     for (const migration of migrations) {
       const filePath = path.resolve(`${this.migrationsPath}/${migration}`)
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      require('ts-node').register()
+      require('ts-node').register(options)
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const module = await import(filePath)
+      const module = require(filePath)
       results.push(module.diff)
     }
 
@@ -309,7 +321,7 @@ export class MigrationService {
 
       // Import the models dynamically
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      require('ts-node').register()
+      require('ts-node').register(options)
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const models = require(absolutePath)
 
@@ -390,17 +402,7 @@ export class MigrationService {
 
     // Register ts-node with proper configuration
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    require('ts-node').register({
-      transpileOnly: true,
-      compilerOptions: {
-        module: 'CommonJS',
-        moduleResolution: 'node',
-        target: 'ES2018',
-        esModuleInterop: true,
-        allowJs: true,
-        resolveJsonModule: true,
-      },
-    })
+    require('ts-node').register(options)
 
     // Get list of applied migrations
     const allMigrations = await new MigrationTable().objects.all()
