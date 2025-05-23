@@ -116,66 +116,39 @@ export class MigrationRunner {
   }
 
   /**
-   * Adds new columns to an existing table.
-   * @param tableName - The name of the table to modify
-   * @param columns - Array of column definitions to add
-   */
-  public async addColumns(
-    tableName: string,
-    columns: SchemaColumn[],
-  ): Promise<void> {
-    const statement = `ALTER TABLE ${tableName} ADD COLUMN ${columns
-      .map((c) => {
-        const expression = c.expression
-        return `${c.name} ${MigrationRunner.getTypeString(c.type)}${
-          expression ? ` MATERIALIZED ${expression}` : ''
-        }${c.default ? ` DEFAULT ${c.default}` : ''}`
-      })
-      .join(', ')}`
-
-    await this.connection.with(async (client: ClickHouseClient) => {
-      await client.exec({ query: statement })
-    })
-  }
-
-  /**
-   * Removes columns from an existing table.
-   * @param tableName - The name of the table to modify
-   * @param columns - Array of column names to remove
-   */
-  public async dropColumns(
-    tableName: string,
-    columns: string[],
-  ): Promise<void> {
-    const statement = `ALTER TABLE ${tableName} DROP COLUMN ${columns.join(
-      ', ',
-    )}`
-
-    await this.connection.with(async (client: ClickHouseClient) => {
-      await client.exec({ query: statement })
-    })
-  }
-
-  /**
    * Modifies existing columns in a table.
    * @param tableName - The name of the table to modify
    * @param columns - Array of column definitions to update
    */
   public async updateColumns(
     tableName: string,
-    columns: SchemaColumn[],
+    addColumns: SchemaColumn[],
+    removeColumns: string[],
+    updateColumns: SchemaColumn[],
   ): Promise<void> {
-    const statement = `ALTER TABLE ${tableName} MODIFY COLUMN ${columns
+    const statement = `ALTER TABLE ${tableName} ${addColumns
       .map((c) => {
         const expression = c.expression
-        return `${c.name} ${MigrationRunner.getTypeString(c.type)}${
+        return `ADD COLUMN ${c.name} ${MigrationRunner.getTypeString(c.type)}${
           expression ? ` MATERIALIZED ${expression}` : ''
         }${c.default ? ` DEFAULT ${c.default}` : ''}`
       })
+      .concat(
+        removeColumns.map((c) => `DROP COLUMN ${c}`),
+        updateColumns.map(
+          (c) =>
+            `MODIFY COLUMN ${c.name} ${MigrationRunner.getTypeString(c.type)}`,
+        ),
+      )
       .join(', ')}`
 
     await this.connection.with(async (client: ClickHouseClient) => {
-      await client.exec({ query: statement })
+      await client.exec({
+        query: statement,
+        clickhouse_settings: {
+          alter_sync: '2',
+        },
+      })
     })
   }
 
