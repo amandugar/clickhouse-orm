@@ -2,6 +2,8 @@ import { BaseFieldOptions, Field } from './base-field'
 
 export enum StringFieldTypes {
   String = 'String',
+  Enum8 = 'Enum8',
+  Enum16 = 'Enum16',
 }
 
 export enum NumberFieldTypes {
@@ -28,6 +30,7 @@ export enum ArrayFieldTypes {
 export interface StringFieldOptions extends BaseFieldOptions {
   defaultValue?: string
   type?: StringFieldTypes
+  enumValues?: Record<string, number>
 }
 
 export interface NumberFieldOptions extends BaseFieldOptions {

@@ -125,6 +125,13 @@ export class MigrationService {
     const migrations = this.migrations()
     const results: SchemaChanges[] = []
 
+    // sort migrations by timestamp in ascending order
+    migrations.sort((a, b) => {
+      const aTimestamp = parseInt(a.split('-')[0])
+      const bTimestamp = parseInt(b.split('-')[0])
+      return aTimestamp - bTimestamp
+    })
+
     for (const migration of migrations) {
       const filePath = path.resolve(`${this.migrationsPath}/${migration}`)
       // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -257,10 +264,12 @@ export class MigrationService {
             newSchema.columns.find((col) => col.name === c) as SchemaColumn,
         )
 
-        const updatedFullColumns: SchemaColumn[] = updatedColumns.map(
-          (c) =>
-            newSchema.columns.find((col) => col.name === c) as SchemaColumn,
-        )
+        const updatedFullColumns: SchemaColumn[] = updatedColumns
+          .map(
+            (c) =>
+              newSchema.columns.find((col) => col.name === c) as SchemaColumn,
+          )
+          .filter((c) => !addedColumns.includes(c.name))
 
         if (
           addedColumns.length > 0 ||
@@ -274,7 +283,7 @@ export class MigrationService {
               ...(addedColumns.length > 0 ? { add: addedFullColumns } : {}),
               ...(removedColumns.length > 0 ? { remove: removedColumns } : {}),
               ...(updatedColumns.length > 0
-                ? { update: updatedFullColumns }
+                ? { update: updatedFullColumns.filter((c) => c.name !== 'id') }
                 : {}),
             },
           })
@@ -421,22 +430,20 @@ export class MigrationService {
       // Apply each change in the migration
       for (const change of diff) {
         if (change.changes.type === 'CREATE') {
+          console.log('Creating table', change.changes.schema.tableName)
           await runner.createTable(change.changes.schema)
         } else if (change.changes.type === 'UPDATE') {
           const { tableName, add, remove, update } = change.changes
+          console.log('Updating table', tableName)
 
-          if (add && add.length > 0) {
-            await runner.addColumns(tableName, add)
-          }
-
-          if (remove && remove.length > 0) {
-            await runner.dropColumns(tableName, remove)
-          }
-
-          if (update && update.length > 0) {
-            await runner.updateColumns(tableName, update)
-          }
+          await runner.updateColumns(
+            tableName,
+            add ?? [],
+            remove ?? [],
+            update ?? [],
+          )
         } else if (change.changes.type === 'DROP') {
+          console.log('Dropping table', change.changes.schema.tableName)
           await runner.dropTable(change.changes.schema.tableName)
         }
       }
