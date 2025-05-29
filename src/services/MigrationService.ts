@@ -39,6 +39,7 @@ import {
 } from '../utils/database/connection-manager'
 import { Engine } from '../utils/engines/engines'
 import { SchemaColumn } from './types'
+import { MigrationTable } from '../models/MigrationTable'
 
 const options = {
   transpileOnly: true,
@@ -53,13 +54,6 @@ const options = {
 }
 
 /**
- * Represents a migration record in the database
- */
-type Migration = {
-  name: string
-  timestamp: number
-}
-/**
  * Creates a memoized version of a function that caches its results
  * @param fn - The function to memoize
  * @returns A memoized version of the function
@@ -71,24 +65,6 @@ function memoize<T>(fn: () => T): () => T {
       cache = fn()
     }
     return cache
-  }
-}
-
-/**
- * Model class for tracking applied migrations in the database
- */
-class MigrationTable extends Model<Migration> {
-  static tableDefinition: TableDefinition<Migration> = {
-    tableName: 'migrations',
-    engine: Engine.MERGE_TREE,
-    orderBy: ['name'],
-  }
-
-  protected static fields: FieldsOf<Migration> = {
-    name: new StringField({}),
-    timestamp: new NumberField({
-      type: NumberFieldTypes.Int64,
-    }),
   }
 }
 
