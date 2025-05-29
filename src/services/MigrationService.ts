@@ -23,21 +23,13 @@
 
 import path from 'path'
 import fs from 'fs'
-import {
-  Model,
-  NumberField,
-  NumberFieldTypes,
-  StringField,
-  TableDefinition,
-} from '../models'
+import { Model } from '../models'
 import { Schema, SchemaChanges } from '../models/model'
-import { FieldsOf } from '../models/types/table-definition'
 import { MigrationRunner } from './MigrationRunner'
 import {
   ConnectionCredentials,
   ConnectionManager,
 } from '../utils/database/connection-manager'
-import { Engine } from '../utils/engines/engines'
 import { SchemaColumn } from './types'
 import { MigrationTable } from '../models/MigrationTable'
 
