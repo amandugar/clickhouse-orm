@@ -199,6 +199,7 @@ export class ConnectionManager<
       try {
         await this.client.close()
       } catch (error) {
+        console.warn('Error closing client', error)
         // Ignore errors when closing a potentially broken connection
       }
       this.client = null
@@ -320,6 +321,7 @@ export class ConnectionManager<
       })
       return true
     } catch (error) {
+      console.warn('Error checking health', error)
       return false
     }
   }
