@@ -733,8 +733,8 @@ export class QueryBuilder<
     }
 
     query += buildSort()
-    if (this._offset) query += ` OFFSET ${this._offset}`
     if (this._limit) query += ` LIMIT ${this._limit}`
+    if (this._offset) query += ` OFFSET ${this._offset}`
 
     return query
   }
