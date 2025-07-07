@@ -227,7 +227,10 @@ describe('TupleField', () => {
       await instance.save()
 
       // Query the saved instance
-      const query = model.objects.filter({ id: 1 })
+      const query = model.objects.filter({ id: 1 }).settings({
+        output_format_json_quote_64bit_floats: 0,
+        output_format_json_quote_64bit_integers: 0,
+      })
       let found = false
       for await (const row of query) {
         found = true
