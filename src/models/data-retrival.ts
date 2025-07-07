@@ -3,14 +3,20 @@ import {
   ConnectionManager,
 } from '../utils/database/connection-manager'
 import { ModelType } from './model'
+import { ClickHouseSettings } from '@clickhouse/client'
 
 export abstract class DataRetrival<T extends ModelType> {
   abstract buildQuery(): string
   abstract getQuery(): string
   private _connectionConfig?: ConnectionConfig
+  protected _settings?: ClickHouseSettings
 
-  constructor(connectionConfig?: ConnectionConfig) {
+  constructor(
+    connectionConfig?: ConnectionConfig,
+    settings?: ClickHouseSettings,
+  ) {
     this._connectionConfig = connectionConfig
+    this._settings = settings
   }
 
   public async *[Symbol.asyncIterator](): AsyncIterator<T> {
@@ -22,6 +28,11 @@ export abstract class DataRetrival<T extends ModelType> {
       return await client.query({
         query: this.getQuery(),
         format: 'JSONEachRow',
+        clickhouse_settings: {
+          output_format_json_quote_64bit_floats: 1,
+          output_format_json_quote_64bit_integers: 1,
+          ...this._settings,
+        },
       })
     })
 

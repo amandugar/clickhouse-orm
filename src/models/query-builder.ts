@@ -35,6 +35,7 @@ import {
 import { Engine } from '../utils'
 import { ConnectionManager } from '../utils/database/connection-manager'
 import { AggregationOperator, AggregationResult } from './aggregation'
+import { ClickHouseSettings } from '@clickhouse/client'
 
 /**
  * Represents a SQL or logical operator that can be used in query conditions
@@ -361,7 +362,6 @@ export class QueryBuilder<
   private _final: boolean = false
   private _model: typeof Model
   private _sort: Record<keyof T, -1 | 1> | undefined = undefined
-
   /**
    * Creates a new QueryBuilder instance
    * @param model - The model class to build queries for
@@ -609,6 +609,11 @@ export class QueryBuilder<
     return this.clone({
       whereConditions: [...this.whereConditions, ...newConditions],
     })
+  }
+
+  public settings(settings: ClickHouseSettings): QueryBuilder<T, M> {
+    this._settings = settings
+    return this
   }
 
   public async count(): Promise<number> {
