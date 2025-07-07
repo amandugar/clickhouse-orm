@@ -1,4 +1,4 @@
-export { Model } from './model'
+export { Model, SchemaChange, SchemaChanges } from './model'
 export * from './fields'
 export type * from './types'
 export type * from './operators'
