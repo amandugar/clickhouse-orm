@@ -77,8 +77,8 @@ export abstract class DataRetrival<T extends ModelType> {
         query: this.getQuery(),
         format: 'JSONEachRow',
         clickhouse_settings: {
-          output_format_json_quote_64bit_floats: 1,
-          output_format_json_quote_64bit_integers: 1,
+          output_format_json_quote_64bit_floats: 0,
+          output_format_json_quote_64bit_integers: 0,
           ...this._settings,
         },
       })
