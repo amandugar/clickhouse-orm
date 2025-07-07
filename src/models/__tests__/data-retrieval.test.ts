@@ -7,7 +7,6 @@ import {
   ConnectionCredentials,
   ConnectionManager,
 } from '../../utils/database/connection-manager'
-import { QueryBuilder } from '../query-builder'
 import { MigrationRunner } from '../../services/MigrationRunner'
 
 type TestUser = {
