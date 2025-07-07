@@ -361,7 +361,7 @@ export class QueryBuilder<
   private readonly baseQueryBuilder: BaseQueryBuilder
   private _final: boolean = false
   private _model: typeof Model
-  private _sort: Record<keyof T, -1 | 1> | undefined = undefined
+  private _sort: Partial<Record<keyof T, -1 | 1>> | undefined = undefined
   /**
    * Creates a new QueryBuilder instance
    * @param model - The model class to build queries for
@@ -376,6 +376,7 @@ export class QueryBuilder<
       limit?: number
       project?: string
       connectionConfig?: ConnectionConfig
+      _sort?: Partial<Record<keyof T, -1 | 1>>
     } = {},
   ) {
     super(options.connectionConfig)
@@ -388,6 +389,7 @@ export class QueryBuilder<
     this._limit = options.limit
     this._project = options.project || '*'
     this.connectionConfig = options.connectionConfig
+    this._sort = options._sort || {}
     this.baseQueryBuilder = new BaseQueryBuilder()
   }
 
@@ -406,8 +408,9 @@ export class QueryBuilder<
       limit: this._limit,
       project: this._project,
       connectionConfig: this.connectionConfig,
+      _sort: this._sort || {},
       ...options,
-    })
+    } as ConstructorParameters<typeof QueryBuilder<T, NewM>>[1])
   }
 
   /**
@@ -720,8 +723,8 @@ export class QueryBuilder<
     const whereClause = this.buildWhereClause(conditions)
 
     const buildSort = () => {
-      if (!this._sort) return ''
-      return `ORDER BY ${Object.entries(this._sort)
+      if (!this._sort || Object.keys(this._sort).length === 0) return ''
+      return ` ORDER BY ${Object.entries(this._sort)
         .map(
           ([field, direction]) =>
             `${field} ${direction === -1 ? 'DESC' : 'ASC'}`,
@@ -761,9 +764,11 @@ export class QueryBuilder<
     return this
   }
 
-  public async first(): Promise<T> {
-    const results = await this.limit(1).all()
-    return results[0]
+  public async first(): Promise<T | undefined> {
+    const results = await this.limit(1)
+      .settings(this._settings || {})
+      .all()
+    return results[0] || undefined
   }
 
   /**
@@ -803,11 +808,12 @@ export class QueryBuilder<
   }
 
   public sort(sortData: Partial<Record<keyof T, -1 | 1>>): QueryBuilder<T, M> {
-    this._sort = {
-      ...this._sort,
-      ...sortData,
-    }
-    return this
+    return this.clone({
+      _sort: {
+        ...this._sort,
+        ...sortData,
+      },
+    })
   }
 
   /**
