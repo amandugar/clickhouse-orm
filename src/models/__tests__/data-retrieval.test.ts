@@ -38,7 +38,7 @@ const connectionConfig: ConnectionCredentials = {
   database: 'default',
 }
 
-describe('DataRetrival', () => {
+describe('DataRetrieval', () => {
   beforeAll(async () => {
     ConnectionManager.setDefault({ credentials: connectionConfig })
     await ConnectionManager.createDatabase('default')
@@ -103,15 +103,16 @@ describe('DataRetrival', () => {
       const query = new TestUserModel().objects
         .filter({ age__gte: 25 })
         .limit(3)
+        .project(['age'])
         .sort({ id: 1 })
 
       const firstUser = await query.next()
       const secondUser = await query.next()
       const thirdUser = await query.next()
 
-      expect(firstUser?.id).toBe(1)
-      expect(secondUser?.id).toBe(2)
-      expect(thirdUser?.id).toBe(3)
+      expect(firstUser?.age).toBe(25)
+      expect(secondUser?.age).toBe(30)
+      expect(thirdUser?.age).toBe(35)
     })
 
     it('should return undefined when no more elements are available', async () => {
@@ -179,6 +180,29 @@ describe('DataRetrival', () => {
       expect(firstUser?.age).toBe(35) // Charlie
       expect(secondUser?.age).toBe(30) // Bob
       expect(thirdUser?.age).toBe(28) // Diana
+    })
+
+    it('should only return projected fields when using project()', async () => {
+      const query = new TestUserModel().objects
+        .filter({ age__gte: 25 })
+        .limit(2)
+        .project(['age', 'name'])
+        .sort({ id: 1 })
+
+      const firstUser = await query.next()
+      const secondUser = await query.next()
+
+      // Should have age and name
+      expect(firstUser?.age).toBe(25)
+      expect(firstUser?.name).toBe('Alice')
+      expect(secondUser?.age).toBe(30)
+      expect(secondUser?.name).toBe('Bob')
+
+      // Should not have id and email (not projected)
+      expect(firstUser?.id).toBeUndefined()
+      expect(firstUser?.email).toBeUndefined()
+      expect(secondUser?.id).toBeUndefined()
+      expect(secondUser?.email).toBeUndefined()
     })
   })
 
@@ -252,6 +276,61 @@ describe('DataRetrival', () => {
 
       expect(firstUser2?.name).toMatch(/a/i)
       expect(secondUser2?.name).toMatch(/a/i)
+    })
+  })
+
+  describe('.count() method', () => {
+    it('should count all records', async () => {
+      const count = await new TestUserModel().objects.count()
+      expect(count).toBe(4)
+    })
+
+    it('should count records with a filter', async () => {
+      const count = await new TestUserModel().objects
+        .filter({ age__gte: 30 })
+        .count()
+      expect(count).toBe(2) // Bob (30), Charlie (35)
+    })
+
+    it('should return 0 if no records match the filter', async () => {
+      const count = await new TestUserModel().objects
+        .filter({ id: 999 })
+        .count()
+      expect(count).toBe(0)
+    })
+
+    it('should ignore projection and count all matching records', async () => {
+      const count = await new TestUserModel().objects.project(['age']).count()
+      expect(count).toBe(4)
+    })
+
+    it('should return 0 after deleting all records', async () => {
+      // Drop and recreate the table to ensure it's empty
+      const connectionManager = ConnectionManager.getDefaultOrCreate()
+      await connectionManager.with(async (client) => {
+        await client.exec({ query: 'DROP TABLE IF EXISTS test_users' })
+      })
+      TestUserModel.init()
+      const table = TestUserModel.generateSchema()
+      const runner = new MigrationRunner(connectionConfig)
+      await runner.createTable(table)
+      const count = await new TestUserModel().objects.count()
+      expect(count).toBe(0)
+
+      // Re-insert test data for other tests
+      const user = new TestUserModel()
+      await user
+        .create({ id: 1, name: 'Alice', email: 'alice@test.com', age: 25 })
+        .save()
+      await user
+        .create({ id: 2, name: 'Bob', email: 'bob@test.com', age: 30 })
+        .save()
+      await user
+        .create({ id: 3, name: 'Charlie', email: 'charlie@test.com', age: 35 })
+        .save()
+      await user
+        .create({ id: 4, name: 'Diana', email: 'diana@test.com', age: 28 })
+        .save()
     })
   })
 

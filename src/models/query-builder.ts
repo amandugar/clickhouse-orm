@@ -21,7 +21,7 @@
  * @module query-builder
  */
 
-import { DataRetrival } from './data-retrival'
+import { DataRetrieval } from './data-retrieval'
 import { Model, ModelType } from './model'
 import { ConnectionConfig } from '../utils/database/connection-manager'
 import {
@@ -82,6 +82,10 @@ export type WithOperators<T> = {
     | Partial<T[K]>[]
     | QueryBuilder<any, any>
 }
+
+export type Project<T extends ModelType> = Array<
+  keyof T | Partial<Record<keyof T, string>> | { [key: string]: string }
+>
 
 /**
  * Base class providing common query building functionality
@@ -341,7 +345,7 @@ export class Q<T extends ModelType> extends BaseQueryBuilder {
 }
 
 /**
- * Main query builder class that extends DataRetrival
+ * Main query builder class that extends DataRetrieval
  * Provides methods for building complex SQL queries with filtering, projection, and pagination
  * @template T - Type of the model's fields
  * @template M - Type of the model's methods
@@ -349,7 +353,7 @@ export class Q<T extends ModelType> extends BaseQueryBuilder {
 export class QueryBuilder<
   T extends ModelType,
   M extends ModelType = ModelType,
-> extends DataRetrival<T> {
+> extends DataRetrieval<T> {
   private readonly tableName: string
   private readonly engine: Engine
   private readonly whereConditions: Condition[] = []
@@ -418,9 +422,7 @@ export class QueryBuilder<
    * @param projects - Array of field names or field aliases
    * @returns A new QueryBuilder instance with the specified projection
    */
-  public project(
-    projects: Array<keyof (T & M) | Record<keyof (T & M), string>>,
-  ): QueryBuilder<T, M> {
+  public project(projects: Project<T>): QueryBuilder<T, M> {
     const statements = projects.map((field) => {
       if (typeof field === 'string') return field
       const [k, v] = Object.entries(field)[0]
@@ -617,12 +619,6 @@ export class QueryBuilder<
   public settings(settings: ClickHouseSettings): QueryBuilder<T, M> {
     this._settings = settings
     return this
-  }
-
-  public async count(): Promise<number> {
-    const countQuery = this.clone({ project: 'COUNT(*) as count' })
-    const result = await countQuery.all()
-    return Number(result[0]?.count || 0)
   }
 
   /**
