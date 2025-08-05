@@ -5,16 +5,14 @@ import {
 } from '../models/types/table-definition'
 import { Q } from '../models/query-builder'
 import { MigrationRunner } from '../services/MigrationRunner'
-import {
-  ConnectionCredentials,
-  ConnectionManager,
-} from '../utils/database/connection-manager'
+import { ConnectionManager } from '../utils/database/connection-manager'
 import { Engine } from '../utils/engines/engines'
 import {
   BooleanFieldTypes,
   NumberFieldTypes,
   StringFieldTypes,
 } from '../models/fields/field-types'
+import { credentials } from './utils'
 
 type User = {
   id: number
@@ -49,13 +47,6 @@ class UserModel extends Model<User, UserMaterialized> {
 }
 
 UserModel.init()
-
-const credentials: ConnectionCredentials = {
-  url: 'http://localhost:8123',
-  username: 'default',
-  database: 'test',
-  password: '',
-}
 
 describe('Model', () => {
   beforeAll(async () => {

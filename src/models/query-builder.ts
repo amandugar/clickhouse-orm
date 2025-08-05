@@ -72,6 +72,12 @@ type Conditions<T extends ModelType> =
   | Array<Q<T> | WithOperators<Partial<T>>>
 
 /**
+ * Type for nested sorting that allows sorting by nested fields
+ * Supports both simple field sorting and nested field sorting
+ */
+type NestedSortData = Partial<Record<string, -1 | 1 | any>>
+
+/**
  * Type that allows field names to be suffixed with operator names
  * Enables syntax like { name__contains: 'John' } for LIKE queries
  */
@@ -365,7 +371,7 @@ export class QueryBuilder<
   private readonly baseQueryBuilder: BaseQueryBuilder
   private _final: boolean = false
   private _model: typeof Model
-  private _sort: Partial<Record<keyof T, -1 | 1>> | undefined = undefined
+  private _sort: NestedSortData | undefined = undefined
   /**
    * Creates a new QueryBuilder instance
    * @param model - The model class to build queries for
@@ -380,7 +386,7 @@ export class QueryBuilder<
       limit?: number
       project?: string
       connectionConfig?: ConnectionConfig
-      _sort?: Partial<Record<keyof T, -1 | 1>>
+      _sort?: NestedSortData
     } = {},
   ) {
     super(options.connectionConfig)
@@ -412,7 +418,7 @@ export class QueryBuilder<
       limit: this._limit,
       project: this._project,
       connectionConfig: this.connectionConfig,
-      _sort: this._sort || {},
+      _sort: this._sort,
       ...options,
     } as ConstructorParameters<typeof QueryBuilder<T, NewM>>[1])
   }
@@ -720,7 +726,9 @@ export class QueryBuilder<
 
     const buildSort = () => {
       if (!this._sort || Object.keys(this._sort).length === 0) return ''
-      return ` ORDER BY ${Object.entries(this._sort)
+
+      const flattenedSort = this.flattenSortData(this._sort)
+      return ` ORDER BY ${Object.entries(flattenedSort)
         .map(
           ([field, direction]) =>
             `${field} ${direction === -1 ? 'DESC' : 'ASC'}`,
@@ -803,7 +811,47 @@ export class QueryBuilder<
     })
   }
 
-  public sort(sortData: Partial<Record<keyof T, -1 | 1>>): QueryBuilder<T, M> {
+  /**
+   * Recursively flattens nested sort data into a flat object with dot notation
+   * @param sortData - The nested sort data to flatten
+   * @param prefix - The current field prefix
+   * @returns Flattened sort data with dot notation keys
+   */
+  private flattenSortData(
+    sortData: NestedSortData,
+    prefix: string = '',
+  ): Record<string, -1 | 1> {
+    const flattened: Record<string, -1 | 1> = {}
+
+    for (const [key, value] of Object.entries(sortData)) {
+      const fieldPath = prefix ? `${prefix}.${key}` : key
+
+      if (
+        typeof value === 'object' &&
+        value !== null &&
+        !Array.isArray(value)
+      ) {
+        // Check if it's a nested object with sort direction
+        if (typeof value === 'number' && (value === -1 || value === 1)) {
+          flattened[fieldPath] = value
+        } else {
+          // Recursively flatten nested object
+          const nestedFlattened = this.flattenSortData(
+            value as NestedSortData,
+            fieldPath,
+          )
+          Object.assign(flattened, nestedFlattened)
+        }
+      } else {
+        // Direct sort direction
+        flattened[fieldPath] = value as -1 | 1
+      }
+    }
+
+    return flattened
+  }
+
+  public sort(sortData: NestedSortData): QueryBuilder<T, M> {
     return this.clone({
       _sort: {
         ...this._sort,
